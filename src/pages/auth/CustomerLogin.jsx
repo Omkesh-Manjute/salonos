@@ -95,25 +95,28 @@ export default function CustomerLogin() {
       
       const phoneNum = firebaseUser.phoneNumber;
       const proxyEmail = `${phoneNum.replace('+', '')}@firebase.salonos.in`;
+      const proxyPassword = firebaseUser.uid; // Use UID as password for better consistency
       
-      let { data: authData, error: supaError } = await supabase.auth.signInWithPassword({
+      let { error: supaError } = await supabase.auth.signInWithPassword({
         email: proxyEmail,
-        password: phoneNum
+        password: proxyPassword
       });
       
-      if (supaError && (supaError.message.includes('Invalid login credentials') || supaError.status === 400)) {
+      if (supaError && (supaError.status === 400 || supaError.message.includes('Invalid login credentials'))) {
+        // Attempt to create or sync the bridged user
         const { error: rpcError } = await supabase.rpc('create_firebase_user_if_not_exists', {
           target_email: proxyEmail,
           target_phone: phoneNum,
-          target_password: phoneNum
+          target_password: proxyPassword
         });
+        
         if (rpcError) {
-          console.error('RPC Error:', rpcError);
-          throw new Error('Database bridge failed. Please contact support.');
+          console.error('Bridge RPC Error:', rpcError);
+          throw new Error('[S1] Database connection error. Please try again.');
         }
         
-        const retry = await supabase.auth.signInWithPassword({ email: proxyEmail, password: phoneNum });
-        if (retry.error) throw retry.error;
+        const retry = await supabase.auth.signInWithPassword({ email: proxyEmail, password: proxyPassword });
+        if (retry.error) throw new Error('[S2] Authentication sync failed. Please contact support.');
       } else if (supaError) {
         throw supaError;
       }
@@ -123,11 +126,15 @@ export default function CustomerLogin() {
     } catch (err) {
       console.error('Verification Error:', err);
       if (err.code === 'auth/invalid-verification-code') {
-        setError('The OTP you entered is incorrect. Please check and try again.');
+        setError('[F1] Incorrect OTP. Please check and try again.');
       } else if (err.code === 'auth/code-expired') {
-        setError('This OTP has expired. Please request a new one.');
+        setError('[F2] OTP expired. Please request a new one.');
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('[F3] Too many attempts. Please wait 5 minutes.');
+      } else if (err.message && err.message.includes('confirmationResult')) {
+        setError('[F4] Session lost. Please request a new OTP.');
       } else {
-        setError(err.message || 'Verification failed. Please try again.');
+        setError(err.message ? `[E] ${err.message}` : '[E] Verification failed. Please try again.');
       }
     } finally {
       setLoading(false);
