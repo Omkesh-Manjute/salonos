@@ -1,4 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
 import { supabase } from './supabase';
 
@@ -104,4 +105,5 @@ export async function sendNotification({ userId, tenantId, type, message, data =
   });
 }
 
-export { app };
+const auth = getAuth(app);
+export { app, auth };

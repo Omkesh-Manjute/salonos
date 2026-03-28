@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Scissors, Smartphone, ArrowRight, ChevronLeft, RefreshCw, ShieldCheck } from 'lucide-react';
-import { isSupabaseConfigured, sendOtp, verifyOtp } from '../../lib/supabase';
+import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
+import { auth } from '../../lib/firebase';
+import { isSupabaseConfigured } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
 const DEMO_OTP = '123456';
@@ -24,6 +26,18 @@ export default function CustomerLogin() {
     return digits.startsWith('91') ? `+${digits}` : `+91${digits}`;
   }
 
+  function setupRecaptcha() {
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(
+        auth,
+        "recaptcha-container",
+        {
+          size: "invisible",
+        }
+      );
+    }
+  }
+
   async function handleSendOtp(e) {
     e.preventDefault();
     setError('');
@@ -39,11 +53,22 @@ export default function CustomerLogin() {
         setLoading(false);
         return;
       }
-      const { error: otpError } = await sendOtp(formatPhone(phone));
-      if (otpError) throw otpError;
+      
+      setupRecaptcha();
+      const appVerifier = window.recaptchaVerifier;
+      const formattedPhone = formatPhone(phone);
+      
+      const confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+      window.confirmationResult = confirmationResult;
       setStep('otp');
     } catch (err) {
-      setError(err.message || 'Failed to send OTP. Please try again.');
+      console.error(err);
+      setError(err.message || 'Failed to send OTP via Firebase.');
+      // remove recaptcha instance if exists so we can safely rebuild it
+      if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear();
+        window.recaptchaVerifier = null;
+      }
     } finally {
       setLoading(false);
     }
@@ -64,12 +89,23 @@ export default function CustomerLogin() {
         navigate(from, { replace: true });
         return;
       }
-      const { error: verifyError } = await verifyOtp(formatPhone(phone), otp);
-      if (verifyError) throw verifyError;
+      
+      const result = await window.confirmationResult.confirm(otp);
+      const firebaseUser = result.user;
+      
+      // Map Firebase auth session to context (creates profile in DB if not natively supported via Supabase JWT)
+      // Since Supabase requires its own session, we fallback to our custom session maker 
+      await startDemoSession('customer', {
+        id: firebaseUser.uid,
+        name: 'Firebase Phone User',
+        phone: firebaseUser.phoneNumber,
+        demo: false // custom flag
+      });
       await refreshProfile();
       navigate(from, { replace: true });
     } catch (err) {
-      setError(err.message || 'Invalid OTP. Please try again.');
+      console.error(err);
+      setError('Invalid OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -204,6 +240,7 @@ export default function CustomerLogin() {
           </div>
         </div>
       </div>
+      <div id="recaptcha-container"></div>
     </div>
   );
 }
