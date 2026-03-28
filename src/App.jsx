@@ -8,6 +8,8 @@ import OwnerLogin from './pages/auth/OwnerLogin';
 import AdminLogin from './pages/auth/AdminLogin';
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 import { AuthProvider } from './context/AuthContext';
 
 export default function App() {
@@ -16,6 +18,8 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="/login/customer" element={<CustomerLogin />} />
           <Route path="/login/owner" element={<OwnerLogin />} />
           <Route path="/login/admin" element={<AdminLogin />} />

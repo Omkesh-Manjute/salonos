@@ -739,6 +739,8 @@ function Footer() {
             <Link to="/login/customer" className="hover:text-white transition-colors">Customer App</Link>
             <Link to="/login/owner" className="hover:text-white transition-colors">Dashboard</Link>
             <Link to="/login/admin" className="hover:text-white transition-colors">Admin</Link>
+            <Link to="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <Link to="/terms-of-service" className="hover:text-white transition-colors">Terms of Service</Link>
           </div>
           <p className="text-xs text-gray-600">© 2026 Omkesh AI Lab. Built for Indian Salons.</p>
         </div>
