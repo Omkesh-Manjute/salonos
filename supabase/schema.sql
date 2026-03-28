@@ -209,21 +209,20 @@ alter table public.notifications enable row level security;
 create or replace function public.current_user_role()
 returns text
 language sql
-security definer
-set search_path = public
 stable
 as $$
-  select role from public.users where id = auth.uid()
+  select coalesce(
+    (current_setting('request.jwt.claims', true)::jsonb -> 'user_metadata' ->> 'role'),
+    'customer'
+  );
 $$;
 
 create or replace function public.current_tenant_id()
 returns uuid
 language sql
-security definer
-set search_path = public
 stable
 as $$
-  select tenant_id from public.users where id = auth.uid()
+  select nullif(current_setting('request.jwt.claims', true)::jsonb -> 'user_metadata' ->> 'tenant_id', '')::uuid;
 $$;
 
 drop policy if exists "admins_manage_salons" on public.salons;
