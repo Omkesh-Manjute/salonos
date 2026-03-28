@@ -108,6 +108,8 @@ export function AuthProvider({ children }) {
   const isAdmin = profile?.role === 'admin';
   const tenantId = profile?.tenant_id;
   const role = profile?.role;
+  const onboardingCompleted = profile?.onboarding_completed;
+  const isOnboardingRequired = isCustomer && (!tenantId || !onboardingCompleted);
 
   function defaultPathForRole(currentRole) {
     if (currentRole === 'admin') return '/admin';
@@ -162,6 +164,8 @@ export function AuthProvider({ children }) {
     isAdmin,
     tenantId,
     role,
+    onboardingCompleted,
+    isOnboardingRequired,
     signOut,
     attachTenant,
     startDemoSession,

@@ -74,6 +74,8 @@ create table if not exists public.users (
   last_seen_at timestamptz,
   fcm_token text,
   metadata jsonb not null default '{}'::jsonb,
+  city text,
+  onboarding_completed boolean not null default false,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
@@ -271,9 +273,9 @@ $$;
 drop policy if exists "admins_manage_salons" on public.salons;
 create policy "admins_manage_salons" on public.salons
 for all using (public.current_user_role() = 'admin') with check (public.current_user_role() = 'admin');
-drop policy if exists "owners_view_their_salon" on public.salons;
-create policy "owners_view_their_salon" on public.salons
-for select using (tenant_id = public.current_tenant_id());
+drop policy if exists "anybody_can_view_salons" on public.salons;
+create policy "anybody_can_view_salons" on public.salons
+for select using (true);
 drop policy if exists "owners_update_their_salon" on public.salons;
 create policy "owners_update_their_salon" on public.salons
 for update using (tenant_id = public.current_tenant_id() and public.current_user_role() = 'owner') with check (tenant_id = public.current_tenant_id() and public.current_user_role() = 'owner');

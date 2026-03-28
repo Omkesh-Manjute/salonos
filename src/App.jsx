@@ -5,6 +5,7 @@ import OwnerDashboard from './pages/OwnerDashboard';
 import AdminPanel from './pages/AdminPanel';
 import CustomerLogin from './pages/auth/CustomerLogin';
 import CustomerEmailLogin from './pages/auth/CustomerEmailLogin';
+import CustomerOnboarding from './pages/auth/CustomerOnboarding';
 import OwnerLogin from './pages/auth/OwnerLogin';
 import AdminLogin from './pages/auth/AdminLogin';
 import NotFound from './pages/NotFound';
@@ -26,6 +27,14 @@ export default function App() {
           <Route path="/login/owner" element={<OwnerLogin />} />
           <Route path="/login/admin" element={<AdminLogin />} />
           <Route path="/login" element={<Navigate to="/login/customer" replace />} />
+          <Route
+            path="/onboarding"
+            element={(
+              <ProtectedRoute requiredRole="customer">
+                <CustomerOnboarding />
+              </ProtectedRoute>
+            )}
+          />
           <Route
             path="/app/*"
             element={(
