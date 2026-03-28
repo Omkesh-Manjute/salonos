@@ -97,10 +97,7 @@ export default function CustomerLogin() {
       const proxyEmail = `${phoneNum.replace('+', '')}@firebase.salonos.in`;
       const proxyPassword = firebaseUser.uid; // Use UID as password for better consistency
       
-      let { error: supaError } = await supabase.auth.signInWithPassword({
-        email: proxyEmail,
-        password: proxyPassword
-      });
+      let { error: supaError } = await signInWithEmail(proxyEmail, proxyPassword);
       
       if (supaError && (supaError.status === 400 || supaError.message.includes('Invalid login credentials'))) {
         // Attempt to create or sync the bridged user

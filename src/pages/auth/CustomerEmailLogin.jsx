@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Scissors, Mail, Lock, ArrowRight, ChevronLeft, RefreshCw } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase, signInWithEmail, signUpWithEmail } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
 export default function CustomerEmailLogin() {
@@ -21,25 +21,15 @@ export default function CustomerEmailLogin() {
     setError('');
     setLoading(true);
     try {
-      console.log('Attempting email login for:', email);
-      const { data: { user: authUser }, error: loginError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (loginError) throw loginError;
-
-      console.log('Auth success, refreshing profile...');
-      await refreshProfile();
+      const { data: { user: authUser }, error: loginError } = await signInWithEmail(email, password);
       
-      console.log('Profile refreshed, navigating...');
+      if (loginError) throw loginError;
+      await refreshProfile();
       navigate(from, { replace: true });
     } catch (err) {
-      console.error('Login Error:', err);
-      setError(err.message || 'Login failed. Please check your credentials.');
-      setLoading(false);
+      setError(err.message || 'Unable to sign in right now.');
     } finally {
-      // Small delay to ensure state updates don't collide if navigating
-      setTimeout(() => setLoading(false), 100);
+      setLoading(false);
     }
   }
 
@@ -57,19 +47,12 @@ export default function CustomerEmailLogin() {
     }
     setLoading(true);
     try {
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: window.location.origin,
-          data: {
-            role: 'customer',
-            name: email.split('@')[0],
-          }
-        }
+      const { error: signUpError } = await signUpWithEmail(email, password, {
+        role: 'customer',
+        name: email.split('@')[0],
       });
       if (signUpError) throw signUpError;
-      setSuccess('Account created! You can now login.');
+      setSuccess('Account created! Please check your email for confirmation.');
     } catch (err) {
       console.error(err);
       setError(err.message || 'Failed to create account.');

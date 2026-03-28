@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, Lock, Mail, RefreshCw, Scissors, ShieldCheck } from 'lucide-react';
-import { isSupabaseConfigured, supabase } from '../../lib/supabase';
+import { isSupabaseConfigured, signInWithEmail, signUpWithEmail } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
 const ROLE_CONTENT = {
@@ -64,22 +64,15 @@ export default function RoleLogin({ role = 'owner' }) {
       }
 
       if (isSignUp) {
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: window.location.origin,
-            data: {
-              role: role,
-              name: email.split('@')[0],
-            }
-          }
+        const { error: signUpError } = await signUpWithEmail(email, password, {
+          role: role,
+          name: email.split('@')[0],
         });
         if (signUpError) throw signUpError;
         setSuccess('Account created! Please check your email for confirmation, then login.');
         setIsSignUp(false);
       } else {
-        const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+        const { error: authError } = await signInWithEmail(email, password);
         if (authError) throw authError;
         await refreshProfile();
         navigate(from, { replace: true });

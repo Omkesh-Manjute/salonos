@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { supabase, getUserProfile, createUserProfile, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, getUserProfile, createUserProfile, isSupabaseConfigured, signOut as supaSignOut } from '../lib/supabase';
 import { requestNotificationPermission } from '../lib/firebase';
 import { clearDemoSession, createDemoSession, readDemoSession, writeDemoSession } from '../lib/demoAuth';
 
@@ -138,7 +138,7 @@ export function AuthProvider({ children }) {
   async function signOut() {
     clearDemoSession();
     if (isSupabaseConfigured) {
-      await supabase.auth.signOut();
+      await supaSignOut();
     }
     setUser(null);
     setProfile(null);

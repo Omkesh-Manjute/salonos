@@ -14,7 +14,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 export async function signUpWithEmail(email, password, meta = {}) {
-  return supabase.auth.signUp({ email, password, options: { data: meta } });
+  return supabase.auth.signUp({ 
+    email, 
+    password, 
+    options: { 
+      data: meta,
+      emailRedirectTo: window.location.origin
+    } 
+  });
 }
 
 export async function signInWithEmail(email, password) {
