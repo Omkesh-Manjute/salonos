@@ -28,25 +28,34 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    const { data, error } = await getUserProfile(authUser.id);
+    try {
+      const { data, error } = await getUserProfile(authUser.id);
 
-    if (error || !data) {
-      const phone = authUser.phone || '';
-      const email = authUser.email || '';
-      const role = email.endsWith('@salonos-admin.in') ? 'admin' : 'customer';
+      if (error || !data) {
+        // Only attempt create if the record actually doesn't exist
+        const phone = authUser.phone || '';
+        const email = authUser.email || '';
+        const role = email.endsWith('@salonos-admin.in') ? 'admin' : 'customer';
 
-      const { data: newProfile } = await createUserProfile({
-        id: authUser.id,
-        name: authUser.user_metadata?.name || phone || email,
-        phone,
-        email,
-        role,
-        tenant_id: null,
-      });
-      setProfile(newProfile);
-    } else {
-      setProfile(data);
-      requestNotificationPermission(authUser.id).catch(() => {});
+        const { data: newProfile, error: createError } = await createUserProfile({
+          id: authUser.id,
+          name: authUser.user_metadata?.name || phone || email,
+          phone,
+          email,
+          role,
+          tenant_id: null,
+        });
+        
+        if (createError && !createError.message.includes('duplicate key')) {
+          console.error('Profile creation error:', createError);
+        }
+        setProfile(newProfile || data); // Use data if newProfile is null due to duplicate
+      } else {
+        setProfile(data);
+        requestNotificationPermission(authUser.id).catch(() => {});
+      }
+    } catch (err) {
+      console.error('Critical Profile Load Error:', err);
     }
   }, [applyDemoSession]);
 
@@ -88,13 +97,20 @@ export function AuthProvider({ children }) {
       if (session?.user) {
         clearDemoSession();
         setUser(session.user);
-        await loadProfile(session.user);
+        try {
+          await loadProfile(session.user);
+        } finally {
+          if (active) {
+            setLoading(false);
+            setInitialized(true);
+          }
+        }
       } else {
         const demo = readDemoSession();
         applyDemoSession(demo);
+        setLoading(false);
+        setInitialized(true);
       }
-      setLoading(false);
-      setInitialized(true);
     });
 
     return () => {

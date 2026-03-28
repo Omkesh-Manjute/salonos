@@ -21,19 +21,25 @@ export default function CustomerEmailLogin() {
     setError('');
     setLoading(true);
     try {
-      const { error: loginError } = await supabase.auth.signInWithPassword({
+      console.log('Attempting email login for:', email);
+      const { data: { user: authUser }, error: loginError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       if (loginError) throw loginError;
 
+      console.log('Auth success, refreshing profile...');
       await refreshProfile();
+      
+      console.log('Profile refreshed, navigating...');
       navigate(from, { replace: true });
     } catch (err) {
-      console.error(err);
+      console.error('Login Error:', err);
       setError(err.message || 'Login failed. Please check your credentials.');
-    } finally {
       setLoading(false);
+    } finally {
+      // Small delay to ensure state updates don't collide if navigating
+      setTimeout(() => setLoading(false), 100);
     }
   }
 
