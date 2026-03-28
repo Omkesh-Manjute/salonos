@@ -1,5 +1,36 @@
 create extension if not exists "pgcrypto";
 
+create or replace function public.create_firebase_user_if_not_exists(
+  target_email text,
+  target_phone text,
+  target_password text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  user_id uuid;
+begin
+  if not exists (select 1 from auth.users where email = target_email) then
+    user_id := gen_random_uuid();
+    insert into auth.users (
+      id, aud, role, email, phone, encrypted_password, email_confirmed_at, 
+      phone_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+      created_at, updated_at
+    )
+    values (
+      user_id, 'authenticated', 'authenticated', target_email, target_phone, 
+      crypt(target_password, gen_salt('bf')), now(), now(), 
+      '{"provider":"phone","providers":["phone"]}'::jsonb,
+      jsonb_build_object('role', 'customer'),
+      now(), now()
+    );
+  end if;
+end;
+$$;
+
 create table if not exists public.salons (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null unique default gen_random_uuid(),
