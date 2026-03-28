@@ -30,9 +30,12 @@ export default function ProtectedRoute({ children, requiredRole }) {
     return <Navigate to={defaultPathForRole(profile.role)} replace />;
   }
 
-  const { isOnboardingRequired } = useAuth();
-  if (isOnboardingRequired && !location.pathname.startsWith('/onboarding')) {
+  const { isCustomerOnboardingRequired, isOwnerOnboardingRequired } = useAuth();
+  if (isCustomerOnboardingRequired && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
+  }
+  if (isOwnerOnboardingRequired && location.pathname !== '/onboarding/owner') {
+    return <Navigate to="/onboarding/owner" replace />;
   }
 
   return children;

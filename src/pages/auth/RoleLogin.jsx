@@ -33,13 +33,16 @@ const ROLE_CONTENT = {
 
 export default function RoleLogin({ role = 'owner' }) {
   const content = useMemo(() => ROLE_CONTENT[role] || ROLE_CONTENT.owner, [role]);
-  const [email, setEmail] = useState(content.demoEmail);
-  const [password, setPassword] = useState(content.demoPassword);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  
   const demoMode = !isSupabaseConfigured;
 
-  const { startDemoSession } = useAuth();
+  const { startDemoSession, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || content.redirect;
@@ -47,6 +50,7 @@ export default function RoleLogin({ role = 'owner' }) {
   async function handleSubmit(event) {
     event.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
 
     try {
@@ -59,9 +63,27 @@ export default function RoleLogin({ role = 'owner' }) {
         return;
       }
 
-      const { error: authError } = await signInWithEmail(email, password);
-      if (authError) throw authError;
-      navigate(from, { replace: true });
+      if (isSignUp) {
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: {
+              role: role,
+              name: email.split('@')[0],
+            }
+          }
+        });
+        if (signUpError) throw signUpError;
+        setSuccess('Account created! Please check your email for confirmation, then login.');
+        setIsSignUp(false);
+      } else {
+        const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+        if (authError) throw authError;
+        await refreshProfile();
+        navigate(from, { replace: true });
+      }
     } catch (err) {
       setError(err.message || 'Unable to sign in right now.');
     } finally {
@@ -137,14 +159,27 @@ export default function RoleLogin({ role = 'owner' }) {
             </div>
 
             {error && <p className="text-red-400 text-xs bg-red-500/10 rounded-lg p-3">{error}</p>}
+            {success && <p className="text-green-400 text-xs bg-green-500/10 rounded-lg p-3">{success}</p>}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 text-white py-3.5 rounded-xl font-semibold transition-all glow disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <>{content.cta} <ArrowRight className="w-4 h-4" /></>}
-            </button>
+            <div className={`flex gap-3 pt-2 ${role === 'admin' ? '' : 'sm:flex-row flex-col'}`}>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-[2] flex items-center justify-center gap-2 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 text-white py-3.5 rounded-xl font-semibold transition-all glow disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <>{isSignUp ? 'Create Owner Account' : content.cta} <ArrowRight className="w-4 h-4" /></>}
+              </button>
+              
+              {role === 'owner' && (
+                <button
+                  type="button"
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  className="flex-1 text-center text-xs glass border border-white/10 hover:border-brand-500/40 text-gray-400 hover:text-white rounded-xl py-3.5 transition-all"
+                >
+                  {isSignUp ? 'Back to Login' : 'Register Salon'}
+                </button>
+              )}
+            </div>
           </form>
 
           <div className="mt-6 pt-6 border-t border-white/10 space-y-2 text-center">

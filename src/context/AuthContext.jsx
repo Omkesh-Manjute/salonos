@@ -125,7 +125,9 @@ export function AuthProvider({ children }) {
   const tenantId = profile?.tenant_id;
   const role = profile?.role;
   const onboardingCompleted = profile?.onboarding_completed;
-  const isOnboardingRequired = isCustomer && (!tenantId || !onboardingCompleted);
+  const isCustomerOnboardingRequired = profile?.role === 'customer' && !profile?.onboarding_completed;
+  const isOwnerOnboardingRequired = profile?.role === 'owner' && !profile?.tenant_id;
+  const isOnboardingRequired = isCustomerOnboardingRequired || isOwnerOnboardingRequired;
 
   function defaultPathForRole(currentRole) {
     if (currentRole === 'admin') return '/admin';
@@ -182,6 +184,8 @@ export function AuthProvider({ children }) {
     role,
     onboardingCompleted,
     isOnboardingRequired,
+    isCustomerOnboardingRequired,
+    isOwnerOnboardingRequired,
     signOut,
     attachTenant,
     startDemoSession,

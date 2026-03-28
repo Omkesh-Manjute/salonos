@@ -6,6 +6,7 @@ import AdminPanel from './pages/AdminPanel';
 import CustomerLogin from './pages/auth/CustomerLogin';
 import CustomerEmailLogin from './pages/auth/CustomerEmailLogin';
 import CustomerOnboarding from './pages/auth/CustomerOnboarding';
+import OwnerOnboarding from './pages/auth/OwnerOnboarding';
 import OwnerLogin from './pages/auth/OwnerLogin';
 import AdminLogin from './pages/auth/AdminLogin';
 import NotFound from './pages/NotFound';
@@ -32,6 +33,14 @@ export default function App() {
             element={(
               <ProtectedRoute requiredRole="customer">
                 <CustomerOnboarding />
+              </ProtectedRoute>
+            )}
+          />
+          <Route
+            path="/onboarding/owner"
+            element={(
+              <ProtectedRoute requiredRole="owner">
+                <OwnerOnboarding />
               </ProtectedRoute>
             )}
           />
