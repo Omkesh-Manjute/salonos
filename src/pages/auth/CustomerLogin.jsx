@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Scissors, Smartphone, ArrowRight, ChevronLeft, RefreshCw, ShieldCheck } from 'lucide-react';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
-import { isSupabaseConfigured } from '../../lib/supabase';
+import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
 const DEMO_OTP = '123456';
@@ -93,14 +93,31 @@ export default function CustomerLogin() {
       const result = await window.confirmationResult.confirm(otp);
       const firebaseUser = result.user;
       
-      // Map Firebase auth session to context (creates profile in DB if not natively supported via Supabase JWT)
-      // Since Supabase requires its own session, we fallback to our custom session maker 
-      await startDemoSession('customer', {
-        id: firebaseUser.uid,
-        name: 'Firebase Phone User',
-        phone: firebaseUser.phoneNumber,
-        demo: false // custom flag
+      // To ensure Supabase Row Level Security works, we implicitly sign the user into Supabase 
+      // using their verified Firebase phone number.
+      const phoneNum = firebaseUser.phoneNumber;
+      const proxyEmail = `${phoneNum.replace('+', '')}@firebase.salonos.in`;
+      
+      let { error: supaError } = await supabase.auth.signInWithPassword({
+        email: proxyEmail,
+        password: phoneNum
       });
+      
+      if (supaError && supaError.message.includes('Invalid login credentials')) {
+        // User doesn't exist in Supabase auth yet, create them:
+        const { error: rpcError } = await supabase.rpc('create_firebase_user_if_not_exists', {
+          target_email: proxyEmail,
+          target_phone: phoneNum,
+          target_password: phoneNum
+        });
+        if (rpcError) throw new Error('Failed to bridge Firebase user to Supabase.');
+        
+        const retry = await supabase.auth.signInWithPassword({ email: proxyEmail, password: phoneNum });
+        if (retry.error) throw retry.error;
+      } else if (supaError) {
+        throw supaError;
+      }
+
       await refreshProfile();
       navigate(from, { replace: true });
     } catch (err) {
