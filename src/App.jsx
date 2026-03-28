@@ -4,6 +4,7 @@ import CustomerApp from './pages/CustomerApp';
 import OwnerDashboard from './pages/OwnerDashboard';
 import AdminPanel from './pages/AdminPanel';
 import CustomerLogin from './pages/auth/CustomerLogin';
+import CustomerEmailLogin from './pages/auth/CustomerEmailLogin';
 import OwnerLogin from './pages/auth/OwnerLogin';
 import AdminLogin from './pages/auth/AdminLogin';
 import NotFound from './pages/NotFound';
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="/login/customer" element={<CustomerLogin />} />
+          <Route path="/login/customer-email" element={<CustomerEmailLogin />} />
           <Route path="/login/owner" element={<OwnerLogin />} />
           <Route path="/login/admin" element={<AdminLogin />} />
           <Route path="/login" element={<Navigate to="/login/customer" replace />} />

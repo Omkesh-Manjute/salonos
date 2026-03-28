@@ -16,17 +16,29 @@ begin
   if not exists (select 1 from auth.users where email = target_email) then
     user_id := gen_random_uuid();
     insert into auth.users (
-      id, aud, role, email, phone, encrypted_password, email_confirmed_at, 
-      phone_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+      id, instance_id, aud, role, email, phone, encrypted_password, 
+      email_confirmed_at, phone_confirmed_at, 
+      raw_app_meta_data, raw_user_meta_data, is_sso_user,
       created_at, updated_at
     )
     values (
-      user_id, 'authenticated', 'authenticated', target_email, target_phone, 
-      crypt(target_password, gen_salt('bf')), now(), now(), 
+      user_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 
+      target_email, target_phone, crypt(target_password, gen_salt('bf')), 
+      now(), now(), 
       '{"provider":"phone","providers":["phone"]}'::jsonb,
       jsonb_build_object('role', 'customer'),
+      false,
       now(), now()
     );
+  else
+    -- Sync password and vital meta to match Auth standards
+    update auth.users 
+    set encrypted_password = crypt(target_password, gen_salt('bf')),
+        instance_id = '00000000-0000-0000-0000-000000000000',
+        email_confirmed_at = coalesce(email_confirmed_at, now()),
+        phone_confirmed_at = coalesce(phone_confirmed_at, now()),
+        updated_at = now()
+    where id = user_id;
   end if;
 end;
 $$;

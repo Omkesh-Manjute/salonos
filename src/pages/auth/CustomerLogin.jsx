@@ -116,7 +116,7 @@ export default function CustomerLogin() {
         }
         
         const retry = await supabase.auth.signInWithPassword({ email: proxyEmail, password: proxyPassword });
-        if (retry.error) throw new Error('[S2] Authentication sync failed. Please contact support.');
+        if (retry.error) throw new Error(`[S2] ${retry.error.message}`);
       } else if (supaError) {
         throw supaError;
       }
@@ -260,6 +260,9 @@ export default function CustomerLogin() {
           <div className="mt-6 pt-6 border-t border-white/10 space-y-2 text-center">
             <p className="text-xs text-gray-500 mb-3">Are you a salon owner or admin?</p>
             <div className="flex gap-2">
+              <Link to="/login/customer-email" className="flex-1 text-center text-xs bg-white/5 border border-white/10 hover:border-brand-500/40 text-gray-300 hover:text-white rounded-lg py-2.5 transition-all">
+                Login with Email
+              </Link>
               <Link to="/login/owner" className="flex-1 text-center text-xs glass border border-white/10 hover:border-brand-500/40 text-gray-400 hover:text-white rounded-lg py-2.5 transition-all">
                 Owner Login
               </Link>
