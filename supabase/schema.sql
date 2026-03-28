@@ -209,6 +209,8 @@ alter table public.notifications enable row level security;
 create or replace function public.current_user_role()
 returns text
 language sql
+security definer
+set search_path = public
 stable
 as $$
   select role from public.users where id = auth.uid()
@@ -217,6 +219,8 @@ $$;
 create or replace function public.current_tenant_id()
 returns uuid
 language sql
+security definer
+set search_path = public
 stable
 as $$
   select tenant_id from public.users where id = auth.uid()
