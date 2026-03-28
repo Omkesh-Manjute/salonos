@@ -160,7 +160,9 @@ export function useCustomerAppData(profile) {
   const load = useCallback(async () => {
     if (!isSupabaseConfigured) return;
     if (!tenantId || !userId) {
-      setState((current) => ({ ...current, loading: false }));
+      if (state.loading) {
+        setState((current) => ({ ...current, loading: false }));
+      }
       return;
     }
     try {
@@ -197,7 +199,11 @@ export function useCustomerAppData(profile) {
   }, [tenantId, userId]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !tenantId || !userId) return undefined;
+    if (!isSupabaseConfigured) return undefined;
+    if (!tenantId || !userId) {
+      setState((current) => ({ ...current, loading: false }));
+      return undefined;
+    }
     load();
     const offQueue = subscribeToTenantTable({ table: 'queue', tenantId, onChange: load });
     const offBookings = subscribeToTenantTable({ table: 'bookings', tenantId, onChange: load });
@@ -257,7 +263,13 @@ export function useOwnerDashboardData(profile) {
   const [state, setState] = useState({ loading: isSupabaseConfigured, services: [], staff: [], customers: [], bookings: [], queue: [], error: '' });
 
   const load = useCallback(async () => {
-    if (!isSupabaseConfigured || !tenantId) return;
+    if (!isSupabaseConfigured) return;
+    if (!tenantId) {
+      if (state.loading) {
+        setState((current) => ({ ...current, loading: false }));
+      }
+      return;
+    }
     try {
       const [servicesRes, customersRes, bookingsRes, queueRes, staffRes] = await Promise.all([
         listServicesByTenant(tenantId),
@@ -294,7 +306,11 @@ export function useOwnerDashboardData(profile) {
   }, [tenantId]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !tenantId) return undefined;
+    if (!isSupabaseConfigured) return undefined;
+    if (!tenantId) {
+      setState((current) => ({ ...current, loading: false }));
+      return undefined;
+    }
     load();
     const offQueue = subscribeToTenantTable({ table: 'queue', tenantId, onChange: load });
     const offBookings = subscribeToTenantTable({ table: 'bookings', tenantId, onChange: load });

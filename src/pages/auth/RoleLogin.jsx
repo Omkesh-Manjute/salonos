@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, Lock, Mail, RefreshCw, Scissors, ShieldCheck } from 'lucide-react';
-import { isSupabaseConfigured, signInWithEmail } from '../../lib/supabase';
+import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
 const ROLE_CONTENT = {
