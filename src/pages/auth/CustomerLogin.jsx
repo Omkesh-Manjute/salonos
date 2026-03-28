@@ -93,24 +93,24 @@ export default function CustomerLogin() {
       const result = await window.confirmationResult.confirm(otp);
       const firebaseUser = result.user;
       
-      // To ensure Supabase Row Level Security works, we implicitly sign the user into Supabase 
-      // using their verified Firebase phone number.
       const phoneNum = firebaseUser.phoneNumber;
       const proxyEmail = `${phoneNum.replace('+', '')}@firebase.salonos.in`;
       
-      let { error: supaError } = await supabase.auth.signInWithPassword({
+      let { data: authData, error: supaError } = await supabase.auth.signInWithPassword({
         email: proxyEmail,
         password: phoneNum
       });
       
-      if (supaError && supaError.message.includes('Invalid login credentials')) {
-        // User doesn't exist in Supabase auth yet, create them:
+      if (supaError && (supaError.message.includes('Invalid login credentials') || supaError.status === 400)) {
         const { error: rpcError } = await supabase.rpc('create_firebase_user_if_not_exists', {
           target_email: proxyEmail,
           target_phone: phoneNum,
           target_password: phoneNum
         });
-        if (rpcError) throw new Error('Failed to bridge Firebase user to Supabase.');
+        if (rpcError) {
+          console.error('RPC Error:', rpcError);
+          throw new Error('Database bridge failed. Please contact support.');
+        }
         
         const retry = await supabase.auth.signInWithPassword({ email: proxyEmail, password: phoneNum });
         if (retry.error) throw retry.error;
@@ -121,8 +121,14 @@ export default function CustomerLogin() {
       await refreshProfile();
       navigate(from, { replace: true });
     } catch (err) {
-      console.error(err);
-      setError('Invalid OTP. Please try again.');
+      console.error('Verification Error:', err);
+      if (err.code === 'auth/invalid-verification-code') {
+        setError('The OTP you entered is incorrect. Please check and try again.');
+      } else if (err.code === 'auth/code-expired') {
+        setError('This OTP has expired. Please request a new one.');
+      } else {
+        setError(err.message || 'Verification failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
