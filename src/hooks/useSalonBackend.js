@@ -158,7 +158,11 @@ export function useCustomerAppData(profile) {
   });
 
   const load = useCallback(async () => {
-    if (!isSupabaseConfigured || !tenantId || !userId) return;
+    if (!isSupabaseConfigured) return;
+    if (!tenantId || !userId) {
+      setState((current) => ({ ...current, loading: false }));
+      return;
+    }
     try {
       const [servicesRes, bookingsRes, queueRes, notificationsRes] = await Promise.all([
         listServicesByTenant(tenantId),

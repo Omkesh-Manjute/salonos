@@ -55,6 +55,7 @@ export default function CustomerEmailLogin() {
         email,
         password,
         options: {
+          emailRedirectTo: window.location.origin,
           data: {
             role: 'customer',
             name: email.split('@')[0],
