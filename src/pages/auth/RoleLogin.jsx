@@ -74,7 +74,7 @@ export default function RoleLogin({ role = 'owner' }) {
       } else {
         const { error: authError } = await signInWithEmail(email, password);
         if (authError) throw authError;
-        await refreshProfile();
+        refreshProfile(); // Trigger but don't await to avoid blocking the UI
         navigate(from, { replace: true });
       }
     } catch (err) {

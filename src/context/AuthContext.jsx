@@ -98,7 +98,11 @@ export function AuthProvider({ children }) {
         clearDemoSession();
         setUser(session.user);
         try {
-          await loadProfile(session.user);
+          const profilePromise = loadProfile(session.user);
+          const timeoutPromise = new Promise(resolve => setTimeout(resolve, 5000));
+          await Promise.race([profilePromise, timeoutPromise]);
+        } catch (e) {
+          console.error('Auth state change profile load error:', e);
         } finally {
           if (active) {
             setLoading(false);

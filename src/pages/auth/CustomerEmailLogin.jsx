@@ -24,7 +24,7 @@ export default function CustomerEmailLogin() {
       const { data: { user: authUser }, error: loginError } = await signInWithEmail(email, password);
       
       if (loginError) throw loginError;
-      await refreshProfile();
+      refreshProfile(); // Trigger but don't await to avoid UI hang
       navigate(from, { replace: true });
     } catch (err) {
       setError(err.message || 'Unable to sign in right now.');
