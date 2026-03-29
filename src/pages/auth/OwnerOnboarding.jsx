@@ -19,9 +19,32 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
 const INDIAN_CITIES = [
-  'Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Ahmedabad', 
-  'Chennai', 'Kolkata', 'Pune', 'Jaipur', 'Lucknow', 
-  'Kanpur', 'Nagpur', 'Indore', 'Thane', 'Bhopal'
+  'Mumbai', 'Pune', 'Nagpur', 'Thane', 'Nashik', 
+  'Kalyan-Dombivli', 'Vasai-Virar', 'Aurangabad', 'Navi Mumbai', 'Solapur', 
+  'Mira-Bhayandar', 'Jalgaon', 'Amravati', 'Nanded', 'Kolhapur', 
+  'Sangli', 'Akola', 'Latur', 'Dhule', 'Ahmednagar', 
+  'Chandrapur', 'Parbhani', 'Ichalkaranji', 'Jalna', 'Ambarnath', 
+  'Bhusawal', 'Panvel', 'Badlapur', 'Beed', 'Gondia', 
+  'Satara', 'Barshi', 'Yavatmal', 'Achalpur', 'Osmanabad', 
+  'Nandurbar', 'Wardha', 'Udgir', 'Hinganghat', 'Delhi', 
+  'Bangalore', 'Hyderabad', 'Ahmedabad', 'Chennai', 'Kolkata', 
+  'Jaipur', 'Lucknow', 'Kanpur', 'Indore', 'Bhopal'
+].sort();
+
+const SALON_SERVICES = [
+  'Classic Haircut',
+  'Beard Trim',
+  'Hair Wash',
+  'Hair Coloring',
+  'Face Massage',
+  'Facial Treatment',
+  'Head Massage',
+  'Shaving',
+  'Hair Spa',
+  'Nail Grooming',
+  'Kid\'s Haircut',
+  'Pedicure',
+  'Manicure'
 ].sort();
 
 export default function OwnerOnboarding() {
@@ -89,74 +112,19 @@ export default function OwnerOnboarding() {
     setLoading(true);
     setError('');
     try {
-      // 1. Create the Salon
-      const { data: salon, error: salonError } = await supabase
-        .from('salons')
-        .insert({
-          name: salonName,
-          slug: salonCode.toLowerCase(),
-          city,
-          address,
-          phone: ownerPhone,
-          owner_user_id: user.id,
-          owner_name: profile?.name || salonName,
-          status: 'trial'
-        })
-        .select()
-        .single();
-
-      if (salonError) throw salonError;
-
-      const tenantId = salon.tenant_id;
-      const salonId = salon.id;
-
-      // 2. Create Services
-      if (services.length > 0) {
-        const servicesData = services
-          .filter(s => s.name && s.price)
-          .map(s => ({
-            tenant_id: tenantId,
-            salon_id: salonId,
-            name: s.name,
-            duration_minutes: parseInt(s.duration),
-            price: parseFloat(s.price),
-            category: 'General'
-          }));
-        
-        if (servicesData.length > 0) {
-          const { error: sError } = await supabase.from('services').insert(servicesData);
-          if (sError) throw sError;
-        }
-      }
-
-      // 3. Create Subscription (Initial 14-day trial)
-      const { error: subError } = await supabase.from('subscriptions').insert({
-        tenant_id: tenantId,
-        salon_id: salonId,
-        plan: 'basic',
-        status: 'trial',
-        trial_started_at: new Date().toISOString(),
-        trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+      // Execute all-in-one setup RPC
+      const { data: result, error: rpcError } = await supabase.rpc('complete_salon_setup', {
+        p_user_id: user.id,
+        p_salon_name: salonName,
+        p_salon_slug: salonCode.toLowerCase(),
+        p_city: city,
+        p_address: address,
+        p_owner_phone: ownerPhone,
+        p_services: services.filter(s => s.name && s.price)
       });
-      if (subError) throw subError;
 
-      // 4. Update User Profile (Assign tenant and role)
-      const { error: userError } = await supabase
-        .from('users')
-        .update({
-          tenant_id: tenantId,
-          salon_id: salonId,
-          role: 'owner',
-          city: city,
-          onboarding_completed: true
-        })
-        .eq('id', user.id);
-
-      if (userError) throw userError;
-
-      // 5. Add Staff (as individual user records if needed, or just metadata)
-      // For now, we'll focus on the primary owner setup. 
-      // Additional staff can be added via the dashboard later.
+      if (rpcError) throw rpcError;
+      if (!result.success) throw new Error(result.error);
 
       await refreshProfile();
       navigate('/dashboard', { replace: true });
@@ -315,13 +283,18 @@ export default function OwnerOnboarding() {
                 {services.map((service, index) => (
                   <div key={index} className="glass border border-white/5 rounded-2xl p-5 flex flex-col md:flex-row gap-4 items-center">
                     <div className="flex-1 w-full space-y-1">
-                      <label className="text-[10px] font-bold text-gray-600 uppercase">Service Name</label>
                       <input 
                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-brand-500/40"
                         placeholder="e.g. Mens Haircut"
+                        list="predefined-services"
                         value={service.name}
                         onChange={(e) => updateService(index, 'name', e.target.value)}
                       />
+                      <datalist id="predefined-services">
+                        {SALON_SERVICES.map(s => (
+                          <option key={s} value={s} />
+                        ))}
+                      </datalist>
                     </div>
                     <div className="w-full md:w-32 space-y-1">
                       <label className="text-[10px] font-bold text-gray-600 uppercase">Price (₹)</label>

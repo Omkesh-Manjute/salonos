@@ -36,6 +36,10 @@ const NAV_ITEMS = [
   { id: 'reports', label: 'Reports', icon: Calendar },
 ];
 
+const SALON_SERVICES_PRESET = [
+  'Classic Haircut', 'Beard Trim', 'Hair Wash', 'Face Massage', 'Hair Spa'
+];
+
 function StatusBadge({ status }) {
   const map = {
     in_progress: 'bg-emerald-500/20 text-emerald-400',
@@ -229,7 +233,12 @@ function QueuePage({ queue, services, onCallNext, onAddWalkIn }) {
   );
 }
 
-function ServicesPage({ services }) {
+function ServicesPage({ services, onAddService }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [name, setName] = useState('');
+  const [price, setPrice] = useState('');
+  const [duration, setDuration] = useState('30');
+
   return (
     <div className="space-y-6 text-left">
       <div className="flex items-center justify-between">
@@ -237,10 +246,30 @@ function ServicesPage({ services }) {
           <h1 className="text-2xl font-bold text-white">Services</h1>
           <p className="text-gray-400 text-sm">Manage your salon service menu</p>
         </div>
-        <button className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2">
+        <button onClick={() => setShowAdd(!showAdd)} className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2">
           <Plus className="w-4 h-4" /> Add Service
         </button>
       </div>
+      
+      {showAdd && (
+        <div className="glass rounded-2xl p-5 border border-white/10 flex flex-col md:flex-row gap-3">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Service name" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50" />
+          <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price (₹)" className="w-full md:w-32 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50" />
+          <input value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="Min" className="w-full md:w-24 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50" />
+          <button 
+            onClick={async () => {
+              if (name && price) {
+                await onAddService({ name, price: parseFloat(price), duration_minutes: parseInt(duration) });
+                setName(''); setPrice(''); setDuration('30');
+                setShowAdd(false);
+              }
+            }} 
+            className="bg-brand-600 text-white px-6 py-2.5 rounded-xl text-sm font-semibold"
+          >
+            Save
+          </button>
+        </div>
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {services.map((service) => (
@@ -270,13 +299,42 @@ function ServicesPage({ services }) {
   );
 }
 
-function StaffPage({ staff }) {
+function StaffPage({ staff, onAddStaff }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [name, setName] = useState('');
+  const [specialty, setSpecialty] = useState('Salon Expert');
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Staff</h1>
-        <p className="text-gray-400 text-sm">Live team availability and performance</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Staff</h1>
+          <p className="text-gray-400 text-sm">Live team availability and performance</p>
+        </div>
+        <button onClick={() => setShowAdd(!showAdd)} className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2">
+          <Plus className="w-4 h-4" /> Add Staff
+        </button>
       </div>
+
+      {showAdd && (
+        <div className="glass rounded-2xl p-4 border border-white/10 flex flex-col md:flex-row gap-3">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Staff name" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50" />
+          <input value={specialty} onChange={(e) => setSpecialty(e.target.value)} placeholder="Specialty (e.g. Master Stylist)" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50" />
+          <button 
+            onClick={async () => {
+              if (name) {
+                await onAddStaff({ name, specialty });
+                setName('');
+                setShowAdd(false);
+              }
+            }} 
+            className="bg-brand-600 text-white px-6 py-2.5 rounded-xl text-sm font-semibold"
+          >
+            Save
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {staff.map((member) => (
           <div key={member.id} className="glass rounded-2xl p-5 border border-white/5">
@@ -294,6 +352,82 @@ function StaffPage({ staff }) {
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function SetupWizard({ profile, onComplete }) {
+  const [salonName, setSalonName] = useState('');
+  const [city, setCity] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSetup = async () => {
+    if (!salonName || !city) {
+      setError('Please fill in both Salon Name and City.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data, error: setupError } = await supabase.rpc('complete_salon_setup', {
+        p_user_id: profile.id,
+        p_salon_name: salonName,
+        p_salon_slug: salonName.toLowerCase().replace(/\s+/g, '-').slice(0, 10),
+        p_city: city,
+        p_address: 'Main St',
+        p_owner_phone: profile.phone || '+910000000000',
+        p_services: SALON_SERVICES_PRESET.map(name => ({ name, duration: 30, price: 200 }))
+      });
+
+      if (setupError) throw setupError;
+      if (!data.success) throw new Error(data.error);
+      
+      await onComplete();
+    } catch (err) {
+      setError(err.message || 'Setup failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-8 py-10">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-white mb-2 italic">Welcome to SalonOS</h1>
+        <p className="text-gray-400">Let's get your salon live in 2 minutes.</p>
+      </div>
+      
+      <div className="glass border border-white/10 rounded-3xl p-8 space-y-6">
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Salon Name</label>
+          <input 
+            value={salonName} 
+            onChange={e => setSalonName(e.target.value)}
+            placeholder="e.g. Sharp Cut Salon"
+            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-brand-500/50"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">City</label>
+          <input 
+            value={city} 
+            onChange={e => setCity(e.target.value)}
+            placeholder="e.g. Mumbai"
+            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-brand-500/50"
+          />
+        </div>
+
+        {error && <div className="text-red-400 text-sm bg-red-500/10 p-4 rounded-xl border border-red-500/20">{error}</div>}
+
+        <button 
+          onClick={handleSetup}
+          disabled={loading}
+          className="w-full bg-gradient-to-r from-brand-600 to-brand-500 py-4 rounded-2xl text-white font-bold hover:glow transition-all disabled:opacity-50"
+        >
+          {loading ? 'Setting up...' : 'Create My Salon & Get Started'}
+        </button>
       </div>
     </div>
   );
@@ -380,17 +514,44 @@ export default function OwnerDashboard() {
   const [activePage, setActivePage] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
-  const { profile, signOut } = useAuth();
-  const { metrics, revenueSeries, queue, staff, customers, services, peakHours, loading, error, callNext, addWalkIn, mode } = useOwnerDashboardData(profile);
+  const { profile, signOut, refreshProfile } = useAuth();
+  const { metrics, revenueSeries, queue, staff, customers, services, peakHours, loading, error, callNext, addWalkIn, mode, load } = useOwnerDashboardData(profile);
+
+  const handleAddStaff = async ({ name, specialty }) => {
+    if (!profile?.tenant_id) return;
+    const { error: staffError } = await supabase.from('users').insert({
+      name,
+      tenant_id: profile.tenant_id,
+      role: 'staff',
+      metadata: { specialty, available: true, rating: 4.8 }
+    });
+    if (staffError) alert(staffError.message);
+    else await load();
+  };
+
+  const handleAddService = async ({ name, price, duration_minutes }) => {
+    if (!profile?.tenant_id || !profile?.salon_id) return;
+    const { error: sError } = await supabase.from('services').insert({
+      name,
+      price,
+      duration_minutes,
+      tenant_id: profile.tenant_id,
+      salon_id: profile.salon_id,
+      category: 'General',
+      active: true
+    });
+    if (sError) alert(sError.message);
+    else await load();
+  };
 
   const pageMap = useMemo(() => ({
     overview: <OverviewPage profile={profile} metrics={metrics} revenueSeries={revenueSeries} queue={queue} mode={mode} />,
     queue: <QueuePage queue={queue} services={services} onCallNext={callNext} onAddWalkIn={addWalkIn} />,
-    services: <ServicesPage services={services} />,
-    staff: <StaffPage staff={staff} />,
+    services: <ServicesPage services={services} onAddService={handleAddService} />,
+    staff: <StaffPage staff={staff} onAddStaff={handleAddStaff} />,
     crm: <CRMPage customers={customers} />,
     reports: <ReportsPage revenueSeries={revenueSeries} peakHours={peakHours} />,
-  }), [addWalkIn, callNext, customers, metrics, mode, peakHours, profile, queue, revenueSeries, services, staff]);
+  }), [addWalkIn, callNext, customers, metrics, mode, peakHours, profile, queue, revenueSeries, services, staff, handleAddStaff, handleAddService]);
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] flex">
@@ -412,7 +573,21 @@ export default function OwnerDashboard() {
           </div>
         </header>
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-          {loading ? <div className="text-gray-400">Loading owner dashboard…</div> : <>{error && <div className="mb-4 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-300">{error}</div>}{pageMap[activePage]}</>}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center h-64 space-y-4">
+              <RefreshCw className="w-8 h-8 text-brand-500 animate-spin" />
+              <div className="text-gray-400">Loading owner dashboard…</div>
+            </div>
+          ) : (
+            <>
+              {error && <div className="mb-4 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-300">{error}</div>}
+              {!profile?.tenant_id ? (
+                <SetupWizard profile={profile} onComplete={refreshProfile} />
+              ) : (
+                pageMap[activePage]
+              )}
+            </>
+          )}
         </main>
       </div>
     </div>

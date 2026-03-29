@@ -18,9 +18,16 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
 const INDIAN_CITIES = [
-  'Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Ahmedabad', 
-  'Chennai', 'Kolkata', 'Pune', 'Jaipur', 'Lucknow', 
-  'Kanpur', 'Nagpur', 'Indore', 'Thane', 'Bhopal'
+  'Mumbai', 'Pune', 'Nagpur', 'Thane', 'Nashik', 
+  'Kalyan-Dombivli', 'Vasai-Virar', 'Aurangabad', 'Navi Mumbai', 'Solapur', 
+  'Mira-Bhayandar', 'Jalgaon', 'Amravati', 'Nanded', 'Kolhapur', 
+  'Sangli', 'Akola', 'Latur', 'Dhule', 'Ahmednagar', 
+  'Chandrapur', 'Parbhani', 'Ichalkaranji', 'Jalna', 'Ambarnath', 
+  'Bhusawal', 'Panvel', 'Badlapur', 'Beed', 'Gondia', 
+  'Satara', 'Barshi', 'Yavatmal', 'Achalpur', 'Osmanabad', 
+  'Nandurbar', 'Wardha', 'Udgir', 'Hinganghat', 'Delhi', 
+  'Bangalore', 'Hyderabad', 'Ahmedabad', 'Chennai', 'Kolkata', 
+  'Jaipur', 'Lucknow', 'Kanpur', 'Indore', 'Bhopal'
 ].sort();
 
 export default function CustomerOnboarding() {
@@ -36,6 +43,7 @@ export default function CustomerOnboarding() {
   const [name, setName] = useState(profile?.name || '');
   const [email, setEmail] = useState(profile?.email || '');
   const [city, setCity] = useState(profile?.city || '');
+  const [phone, setPhone] = useState(profile?.phone || '');
   
   // Step 2: Salon Selection
   const [salonCode, setSalonCode] = useState('');
@@ -101,6 +109,7 @@ export default function CustomerOnboarding() {
           name,
           email,
           city,
+          phone,
           tenant_id: salon.tenant_id,
           salon_id: salon.id,
           onboarding_completed: true
@@ -128,6 +137,11 @@ export default function CustomerOnboarding() {
       setStep(2);
     }
   };
+
+  const filteredSalons = salonsInCity.filter(salon => 
+    salon.name.toLowerCase().includes(salonCode.toLowerCase()) || 
+    salon.slug.toLowerCase().includes(salonCode.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center p-4 relative overflow-hidden">
@@ -214,9 +228,14 @@ export default function CustomerOnboarding() {
 
                   <div className="space-y-2">
                     <label className="text-xs font-semibold text-gray-500 uppercase ml-1">Phone Number</label>
-                    <div className="flex items-center glass border border-white/5 opacity-60 rounded-2xl p-4 bg-white/5">
-                      <Phone className="w-5 h-5 text-gray-600" />
-                      <span className="ml-3 text-gray-400 flex-1">{profile?.phone || 'Not available'}</span>
+                    <div className="flex items-center glass border border-white/10 rounded-2xl p-4 focus-within:border-brand-500/50 transition-all group">
+                      <Phone className="w-5 h-5 text-gray-500 group-focus-within:text-brand-400 transition-colors" />
+                      <input 
+                        className="bg-transparent border-none focus:ring-0 ml-3 text-white flex-1 placeholder:text-gray-600"
+                        placeholder="e.g. 98765 43210"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      />
                     </div>
                   </div>
                 </div>
@@ -245,8 +264,11 @@ export default function CustomerOnboarding() {
                   <h2 className="text-3xl font-bold text-white mb-2">Select your salon</h2>
                   <p className="text-gray-400">Choose your favorite salon in <span className="text-brand-400 font-bold">{city}</span></p>
                 </div>
-                <button 
-                  onClick={() => setStep(1)}
+                  <button 
+                  onClick={() => {
+                    setError('');
+                    setStep(1);
+                  }}
                   className="text-xs font-bold text-gray-500 hover:text-white uppercase tracking-widest underline underline-offset-4"
                 >
                   Change City
@@ -297,8 +319,8 @@ export default function CustomerOnboarding() {
                       <RefreshCw className="w-8 h-8 text-brand-500 animate-spin mx-auto" />
                       <p className="text-gray-500 text-sm">Searching for salons in your area...</p>
                     </div>
-                  ) : salonsInCity.length > 0 ? (
-                    salonsInCity.map((salon) => (
+                  ) : filteredSalons.length > 0 ? (
+                    filteredSalons.map((salon) => (
                       <button
                         key={salon.id}
                         onClick={() => handleCompleteOnboarding(salon)}
@@ -328,8 +350,8 @@ export default function CustomerOnboarding() {
                   ) : (
                     <div className="py-12 text-center glass rounded-3xl border border-white/5 border-dashed">
                       <Search className="w-12 h-12 text-gray-700 mx-auto mb-4" />
-                      <p className="text-gray-400 font-medium">No active salons found in {city}</p>
-                      <p className="text-xs text-gray-500 mt-2">Try entering a Salon Code if you were invited manually.</p>
+                      <p className="text-gray-400 font-medium">No active salons found with that code or name in {city}</p>
+                      <p className="text-xs text-gray-500 mt-2">Try entering a different Salon Code or search by name.</p>
                     </div>
                   )}
                 </div>

@@ -3,7 +3,7 @@ import { supabase, getUserProfile, createUserProfile, isSupabaseConfigured, sign
 import { requestNotificationPermission } from '../lib/firebase';
 import { clearDemoSession, createDemoSession, readDemoSession, writeDemoSession } from '../lib/demoAuth';
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -19,12 +19,16 @@ export function AuthProvider({ children }) {
   const loadProfile = useCallback(async (authUser) => {
     if (!authUser) {
       setProfile(null);
+      setLoading(false);
       return;
     }
+
+    setLoading(true);
 
     if (!isSupabaseConfigured) {
       const cachedDemo = readDemoSession();
       if (cachedDemo) applyDemoSession(cachedDemo);
+      setLoading(false);
       return;
     }
 
@@ -63,6 +67,8 @@ export function AuthProvider({ children }) {
       }
     } catch (err) {
       console.error('Critical Profile Load Error:', err);
+    } finally {
+      setLoading(false);
     }
   }, [applyDemoSession]);
 
@@ -144,8 +150,9 @@ export function AuthProvider({ children }) {
   const tenantId = profile?.tenant_id;
   const role = profile?.role;
   const onboardingCompleted = profile?.onboarding_completed;
-  const isCustomerOnboardingRequired = profile?.role === 'customer' && !profile?.onboarding_completed;
-  const isOwnerOnboardingRequired = profile?.role === 'owner' && !profile?.tenant_id;
+  // Onboarding is no longer mandatory to skip current setup wizard
+  const isCustomerOnboardingRequired = profile?.role === 'customer' && !profile?.city;
+  const isOwnerOnboardingRequired = false;
   const isOnboardingRequired = isCustomerOnboardingRequired || isOwnerOnboardingRequired;
 
   function defaultPathForRole(currentRole) {
@@ -215,5 +222,4 @@ export function AuthProvider({ children }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-
-// useAuth hook is now in src/hooks/useAuth.js
+export { useAuth } from '../hooks/useAuth';
