@@ -134,8 +134,9 @@ export function AuthProvider({ children }) {
   const tenantId = profile?.tenant_id;
   const role = profile?.role;
   const onboardingCompleted = profile?.onboarding_completed;
-  const isCustomerOnboardingRequired = profile?.role === 'customer' && !profile?.onboarding_completed;
-  const isOwnerOnboardingRequired = profile?.role === 'owner' && !profile?.tenant_id;
+  // Onboarding is no longer mandatory to skip current setup wizard
+  const isCustomerOnboardingRequired = profile?.role === 'customer' && !profile?.city;
+  const isOwnerOnboardingRequired = false;
   const isOnboardingRequired = isCustomerOnboardingRequired || isOwnerOnboardingRequired;
 
   function defaultPathForRole(currentRole) {

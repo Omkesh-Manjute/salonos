@@ -30,12 +30,13 @@ export default function ProtectedRoute({ children, requiredRole }) {
     return <Navigate to={defaultPathForRole(profile.role)} replace />;
   }
 
-  if (isCustomerOnboardingRequired && location.pathname !== '/onboarding') {
-    return <Navigate to="/onboarding" replace />;
-  }
-  if (isOwnerOnboardingRequired && location.pathname !== '/onboarding/owner') {
-    return <Navigate to="/onboarding/owner" replace />;
-  }
+  // Remove forced onboarding for now as requested
+  // if (isCustomerOnboardingRequired && location.pathname !== '/onboarding') {
+  //   return <Navigate to="/onboarding" replace />;
+  // }
+  // if (isOwnerOnboardingRequired && location.pathname !== '/onboarding/owner') {
+  //   return <Navigate to="/onboarding/owner" replace />;
+  // }
 
   return children;
 }
