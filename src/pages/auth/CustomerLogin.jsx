@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Scissors, Smartphone, ArrowRight, ChevronLeft, RefreshCw, ShieldCheck } from 'lucide-react';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
-import { isSupabaseConfigured, supabase } from '../../lib/supabase';
+import { isSupabaseConfigured, supabase, signInWithEmail } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
 const DEMO_OTP = '123456';

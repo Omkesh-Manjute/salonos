@@ -12,7 +12,6 @@ import {
   resequenceQueue,
   subscribeToTenantTable,
   supabase,
-  updateBookingStatus,
   updateQueueEntry,
 } from '../lib/supabase';
 import {

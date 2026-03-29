@@ -55,6 +55,11 @@ export default function RoleLogin({ role = 'owner' }) {
 
     try {
       if (demoMode) {
+        if (email !== content.demoEmail || password !== content.demoPassword) {
+          setError('Invalid demo credentials. Please use the prefilled credentials.');
+          setLoading(false);
+          return;
+        }
         await startDemoSession(role, {
           name: role === 'owner' ? 'Aurangzeb Alamgir' : 'Super Admin',
           email,
@@ -78,6 +83,7 @@ export default function RoleLogin({ role = 'owner' }) {
         navigate(from, { replace: true });
       }
     } catch (err) {
+      console.error('Login error:', err); // For debugging
       setError(err.message || 'Unable to sign in right now.');
     } finally {
       setLoading(false);
