@@ -3,7 +3,7 @@ import { supabase, getUserProfile, createUserProfile, isSupabaseConfigured, sign
 import { requestNotificationPermission } from '../lib/firebase';
 import { clearDemoSession, createDemoSession, readDemoSession, writeDemoSession } from '../lib/demoAuth';
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -205,5 +205,4 @@ export function AuthProvider({ children }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-
-// useAuth hook is now in src/hooks/useAuth.js
+export { useAuth } from '../hooks/useAuth';
