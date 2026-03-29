@@ -19,8 +19,11 @@ export function AuthProvider({ children }) {
   const loadProfile = useCallback(async (authUser) => {
     if (!authUser) {
       setProfile(null);
+      setLoading(false);
       return;
     }
+
+    setLoading(true);
 
     if (!isSupabaseConfigured) {
       const cachedDemo = readDemoSession();
@@ -35,7 +38,7 @@ export function AuthProvider({ children }) {
         // Only attempt create if the record actually doesn't exist
         const phone = authUser.phone || '';
         const email = authUser.email || '';
-        const role = email.endsWith('@salonos-admin.in') ? 'admin' : 'customer';
+        const role = authUser.user_metadata?.role || (email.endsWith('@salonos-admin.in') ? 'admin' : 'customer');
 
         const { data: newProfile, error: createError } = await createUserProfile({
           id: authUser.id,
@@ -56,6 +59,8 @@ export function AuthProvider({ children }) {
       }
     } catch (err) {
       console.error('Critical Profile Load Error:', err);
+    } finally {
+      setLoading(false);
     }
   }, [applyDemoSession]);
 

@@ -19,9 +19,16 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
 const INDIAN_CITIES = [
-  'Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Ahmedabad', 
-  'Chennai', 'Kolkata', 'Pune', 'Jaipur', 'Lucknow', 
-  'Kanpur', 'Nagpur', 'Indore', 'Thane', 'Bhopal'
+  'Mumbai', 'Pune', 'Nagpur', 'Thane', 'Nashik', 
+  'Kalyan-Dombivli', 'Vasai-Virar', 'Aurangabad', 'Navi Mumbai', 'Solapur', 
+  'Mira-Bhayandar', 'Jalgaon', 'Amravati', 'Nanded', 'Kolhapur', 
+  'Sangli', 'Akola', 'Latur', 'Dhule', 'Ahmednagar', 
+  'Chandrapur', 'Parbhani', 'Ichalkaranji', 'Jalna', 'Ambarnath', 
+  'Bhusawal', 'Panvel', 'Badlapur', 'Beed', 'Gondia', 
+  'Satara', 'Barshi', 'Yavatmal', 'Achalpur', 'Osmanabad', 
+  'Nandurbar', 'Wardha', 'Udgir', 'Hinganghat', 'Delhi', 
+  'Bangalore', 'Hyderabad', 'Ahmedabad', 'Chennai', 'Kolkata', 
+  'Jaipur', 'Lucknow', 'Kanpur', 'Indore', 'Bhopal'
 ].sort();
 
 export default function OwnerOnboarding() {
