@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useEffect, useState, useCallback } from 'react';
 import { supabase, getUserProfile, createUserProfile, isSupabaseConfigured, signOut as supaSignOut } from '../lib/supabase';
 import { requestNotificationPermission } from '../lib/firebase';
 import { clearDemoSession, createDemoSession, readDemoSession, writeDemoSession } from '../lib/demoAuth';
@@ -200,8 +200,5 @@ export function AuthProvider({ children }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
-  return ctx;
-}
+
+// useAuth hook is now in src/hooks/useAuth.js

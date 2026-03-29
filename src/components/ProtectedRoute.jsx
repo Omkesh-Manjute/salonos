@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
  * Authenticated users with the wrong role are sent to their correct home.
  */
 export default function ProtectedRoute({ children, requiredRole }) {
-  const { user, profile, loading, defaultPathForRole } = useAuth();
+  const { user, profile, loading, defaultPathForRole, isCustomerOnboardingRequired, isOwnerOnboardingRequired } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -30,7 +30,6 @@ export default function ProtectedRoute({ children, requiredRole }) {
     return <Navigate to={defaultPathForRole(profile.role)} replace />;
   }
 
-  const { isCustomerOnboardingRequired, isOwnerOnboardingRequired } = useAuth();
   if (isCustomerOnboardingRequired && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
   }

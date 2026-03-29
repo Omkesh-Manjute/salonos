@@ -1,3 +1,5 @@
+/* global clients */
+
 self.addEventListener('push', (event) => {
   if (!event.data) return;
   const payload = event.data.json();

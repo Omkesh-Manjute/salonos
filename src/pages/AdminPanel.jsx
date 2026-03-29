@@ -186,7 +186,7 @@ function SalonsPage({ salons }) {
                   <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-700 to-brand-500 flex items-center justify-center shrink-0"><Scissors className="w-3 h-3 text-white" /></div>
                   <div>
                     <div className="font-medium text-white text-sm">{salon.name}</div>
-                    <div className="text-xs text-gray-500">{salon.city} · Joined {salon.joined || new Date(salon.created_at || Date.now()).toLocaleDateString()}</div>
+                    <div className="text-xs text-gray-500">{salon.city} · Joined {salon.joined ? new Date(salon.joined).toLocaleDateString() : salon.created_at ? new Date(salon.created_at).toLocaleDateString() : 'Unknown'}</div>
                   </div>
                 </div>
               </div>
