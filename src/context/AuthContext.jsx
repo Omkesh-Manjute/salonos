@@ -32,24 +32,31 @@ export function AuthProvider({ children }) {
       const { data, error } = await getUserProfile(authUser.id);
 
       if (error || !data) {
-        // Only attempt create if the record actually doesn't exist
+        // Profile doesn't exist - try to create it, but the database trigger should have already created it
+        // This is a fallback in case the trigger hasn't fired yet or there's a timing issue
         const phone = authUser.phone || '';
         const email = authUser.email || '';
-        const role = email.endsWith('@salonos-admin.in') ? 'admin' : 'customer';
+        // Determine role from user_metadata, fall back to email domain check, default to 'customer'
+        const userRole = authUser.user_metadata?.role ||
+                        (email.endsWith('@salonos-admin.in') ? 'admin' : 'customer');
 
         const { data: newProfile, error: createError } = await createUserProfile({
           id: authUser.id,
-          name: authUser.user_metadata?.name || phone || email,
+          name: authUser.user_metadata?.name || phone || email.split('@')[0],
           phone,
           email,
-          role,
+          role: userRole,
           tenant_id: null,
         });
-        
-        if (createError && !createError.message.includes('duplicate key')) {
-          console.error('Profile creation error:', createError);
+
+        if (createError) {
+          // Profile likely already exists from the database trigger (duplicate key)
+          // Fetch it again
+          const { data: retryData } = await getUserProfile(authUser.id);
+          setProfile(retryData || null);
+        } else {
+          setProfile(newProfile);
         }
-        setProfile(newProfile || data); // Use data if newProfile is null due to duplicate
       } else {
         setProfile(data);
         requestNotificationPermission(authUser.id).catch(() => {});
@@ -71,26 +78,34 @@ export function AuthProvider({ children }) {
 
     let active = true;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!active) return;
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (!active) return;
 
-      if (session?.user) {
-        setUser(session.user);
-        loadProfile(session.user).finally(() => {
-          if (!active) return;
+        if (session?.user) {
+          setUser(session.user);
+          loadProfile(session.user).finally(() => {
+            if (!active) return;
+            setLoading(false);
+            setInitialized(true);
+          });
+          return;
+        }
+
+        if (cachedDemo) {
+          applyDemoSession(cachedDemo);
+        }
+
+        setLoading(false);
+        setInitialized(true);
+      })
+      .catch((error) => {
+        console.error('Session check error:', error);
+        if (active) {
           setLoading(false);
           setInitialized(true);
-        });
-        return;
-      }
-
-      if (cachedDemo) {
-        applyDemoSession(cachedDemo);
-      }
-
-      setLoading(false);
-      setInitialized(true);
-    });
+        }
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!active) return;
