@@ -1,0 +1,7 @@
+{
+  "projectId": "20004dc4-fd06-48f9-969b-a10bed68701b",
+  "templateId": "any",
+  "startupCommands": [
+    "npm install; nohup npm run dev -- --host 0.0.0.0 --port 5174 >/home/user/app/.orchids/vite.log 2>&1 &"
+  ]
+}
