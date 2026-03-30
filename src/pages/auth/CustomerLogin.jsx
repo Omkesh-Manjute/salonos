@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Scissors, Smartphone, ArrowRight, ChevronLeft, RefreshCw, ShieldCheck } from 'lucide-react';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
@@ -14,6 +14,9 @@ export default function CustomerLogin() {
   const [step, setStep] = useState('phone'); // 'phone' | 'otp'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [confirmationResult, setConfirmationResult] = useState(null);
+  const confirmationResultRef = useRef(null);
+  const hasActiveVerificationSession = Boolean(confirmationResult);
   const demoMode = !isSupabaseConfigured;
 
   const navigate = useNavigate();
@@ -24,6 +27,21 @@ export default function CustomerLogin() {
   function formatPhone(raw) {
     const digits = raw.replace(/\D/g, '');
     return digits.startsWith('91') ? `+${digits}` : `+91${digits}`;
+  }
+
+  function setConfirmationSession(nextConfirmationResult) {
+    setConfirmationResult(nextConfirmationResult);
+    confirmationResultRef.current = nextConfirmationResult;
+    window.confirmationResult = nextConfirmationResult;
+  }
+
+  function resetVerificationSession() {
+    if (window.recaptchaVerifier) {
+      window.recaptchaVerifier.clear();
+      window.recaptchaVerifier = null;
+    }
+    setConfirmationSession(null);
+    setOtp('');
   }
 
   function setupRecaptcha() {
@@ -45,6 +63,12 @@ export default function CustomerLogin() {
       setError('Please enter a valid 10-digit mobile number.');
       return;
     }
+    if (!demoMode && hasActiveVerificationSession) {
+      setError('An OTP session is already active. Verify that OTP or use "Resend OTP" to start a new session.');
+      setStep('otp');
+      return;
+    }
+
     setLoading(true);
     try {
       if (demoMode) {
@@ -58,17 +82,47 @@ export default function CustomerLogin() {
       const appVerifier = window.recaptchaVerifier;
       const formattedPhone = formatPhone(phone);
       
-      const confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
-      window.confirmationResult = confirmationResult;
+      const sessionResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+      setConfirmationSession(sessionResult);
       setStep('otp');
     } catch (err) {
       console.error(err);
       setError(err.message || 'Failed to send OTP via Firebase.');
       // remove recaptcha instance if exists so we can safely rebuild it
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
-        window.recaptchaVerifier = null;
-      }
+      resetVerificationSession();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResendOtp() {
+    if (loading) return;
+    if (phone.replace(/\D/g, '').length < 10) {
+      setError('Please enter a valid 10-digit mobile number.');
+      setStep('phone');
+      return;
+    }
+
+    resetVerificationSession();
+    setError('');
+
+    if (demoMode) {
+      setStep('otp');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      setupRecaptcha();
+      const appVerifier = window.recaptchaVerifier;
+      const formattedPhone = formatPhone(phone);
+      const sessionResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+      setConfirmationSession(sessionResult);
+      setStep('otp');
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Failed to resend OTP via Firebase.');
+      resetVerificationSession();
     } finally {
       setLoading(false);
     }
@@ -78,6 +132,11 @@ export default function CustomerLogin() {
     e.preventDefault();
     setError('');
     if (otp.length !== 6) { setError('Enter the 6-digit OTP.'); return; }
+    if (!demoMode && !hasActiveVerificationSession) {
+      setError('OTP session not found. Please resend OTP to continue.');
+      return;
+    }
+
     setLoading(true);
     try {
       if (demoMode) {
@@ -90,7 +149,7 @@ export default function CustomerLogin() {
         return;
       }
       
-      const result = await window.confirmationResult.confirm(otp);
+      const result = await confirmationResultRef.current.confirm(otp);
       const firebaseUser = result.user;
       
       const phoneNum = firebaseUser.phoneNumber;
@@ -244,7 +303,20 @@ export default function CustomerLogin() {
 
                 <button
                   type="button"
-                  onClick={() => { setStep('phone'); setOtp(''); setError(''); }}
+                  onClick={handleResendOtp}
+                  disabled={loading}
+                  className="w-full text-center text-sm text-brand-400 hover:text-brand-300 transition-colors py-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  Resend OTP
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetVerificationSession();
+                    setStep('phone');
+                    setError('');
+                  }}
                   className="w-full text-center text-sm text-gray-400 hover:text-white transition-colors py-2"
                 >
                   Change number
