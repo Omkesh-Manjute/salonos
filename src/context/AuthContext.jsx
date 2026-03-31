@@ -30,13 +30,15 @@ export function AuthProvider({ children }) {
 
     // Normalized ID (Firebase: uid)
     const userId = authUser.uid;
-    const { data, error } = await getUserProfile(userId);
+    const { data: profileData, error: profileError } = await getUserProfile(userId);
 
-    if (error || !data) {
+    if (profileError || !profileData) {
       // Create new profile if not found
       const phone = authUser.phoneNumber || authUser.phone || '';
       const email = authUser.email || '';
+      
       // Simple role logic: email with @salonos-admin.in is admin, everything else is customer by default
+      // Note: Owners are usually assigned after onboarding, but we can default to customer
       const role = email.endsWith('@salonos-admin.in') ? 'admin' : 'customer';
 
       const { data: newProfile, error: createError } = await createUserProfile({
@@ -52,7 +54,7 @@ export function AuthProvider({ children }) {
         setProfile(newProfile);
       }
     } else {
-      setProfile(data);
+      setProfile(profileData);
       requestNotificationPermission(userId).catch(() => {});
     }
   }, [applyDemoSession]);

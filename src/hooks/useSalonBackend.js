@@ -158,7 +158,10 @@ export function useCustomerAppData(profile) {
   });
 
   const load = useCallback(async () => {
-    if (!isSupabaseConfigured || !tenantId || !userId) return;
+    if (!isSupabaseConfigured || !tenantId || !userId) {
+      setState((current) => ({ ...current, loading: false }));
+      return;
+    }
     try {
       const [servicesRes, bookingsRes, queueRes, notificationsRes] = await Promise.all([
         listServicesByTenant(tenantId),
@@ -253,7 +256,10 @@ export function useOwnerDashboardData(profile) {
   const [state, setState] = useState({ loading: isSupabaseConfigured, services: [], staff: [], customers: [], bookings: [], queue: [], error: '' });
 
   const load = useCallback(async () => {
-    if (!isSupabaseConfigured || !tenantId) return;
+    if (!isSupabaseConfigured || !tenantId) {
+      setState((current) => ({ ...current, loading: false }));
+      return;
+    }
     try {
       const [servicesRes, customersRes, bookingsRes, queueRes, staffRes] = await Promise.all([
         listServicesByTenant(tenantId),

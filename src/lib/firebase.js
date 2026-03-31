@@ -7,7 +7,9 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
-  signOut as firebaseSignOut
+  signOut as firebaseSignOut,
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
 import { supabase } from './supabase';
 
@@ -86,6 +88,18 @@ export async function signUpWithEmailFirebase(email, password) {
     return { data: userCredential.user, error: null };
   } catch (error) {
     console.error('Firebase Sign Up Error:', error);
+    return { data: null, error };
+  }
+}
+
+/** Sign in with Google (Firebase) */
+export async function signInWithGoogle() {
+  try {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    return { data: result.user, error: null };
+  } catch (error) {
+    console.error('Firebase Google Sign In Error:', error);
     return { data: null, error };
   }
 }
