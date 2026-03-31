@@ -214,30 +214,158 @@ function QueuePage({ queue, services, onCallNext, onAddWalkIn }) {
   );
 }
 
-function StaffPage({ staff }) {
+function StaffPage({ staff, onAdd, onUpdate, onDelete }) {
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [formData, setFormData] = useState({ name: '', specialty: '', experience: '', avatar_url: '' });
+
+  function handleEdit(member) {
+    setEditing(member.id);
+    setFormData({
+      name: member.name,
+      specialty: member.specialty,
+      experience: member.experience || '',
+      avatar_url: member.avatar_url || '',
+    });
+    setShowForm(true);
+  }
+
+  async function handleSubmit() {
+    if (!formData.name.trim()) return;
+    if (editing) {
+      await onUpdate(editing, { name: formData.name, metadata: { specialty: formData.specialty, experience: formData.experience, avatar_url: formData.avatar_url } });
+    } else {
+      await onAdd(formData);
+    }
+    setFormData({ name: '', specialty: '', experience: '', avatar_url: '' });
+    setEditing(null);
+    setShowForm(false);
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Staff</h1>
-        <p className="text-gray-400 text-sm">Live team availability and performance</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Staff Management</h1>
+          <p className="text-gray-400 text-sm">Manage your team, specialties, and photos</p>
+        </div>
+        <button
+          onClick={() => { setShowForm(true); setEditing(null); setFormData({ name: '', specialty: '', experience: '', avatar_url: '' }); }}
+          className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg glow"
+        >
+          <Plus className="w-4 h-4" /> Add Team Member
+        </button>
       </div>
+
+      {showForm && (
+        <div className="glass rounded-2xl p-6 border border-white/10 space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
+          <h3 className="text-white font-semibold flex items-center gap-2">
+            {editing ? <Settings className="w-4 h-4 text-brand-400" /> : <User className="w-4 h-4 text-brand-400" />}
+            {editing ? 'Edit Team Member' : 'New Team Member'}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1.5 ml-1">Full Name</label>
+              <input
+                value={formData.name}
+                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g. Rahul Sharma"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1.5 ml-1">Specialty</label>
+              <input
+                value={formData.specialty}
+                onChange={e => setFormData({ ...formData, specialty: e.target.value })}
+                placeholder="e.g. Master Stylist"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1.5 ml-1">Experience</label>
+              <input
+                value={formData.experience}
+                onChange={e => setFormData({ ...formData, experience: e.target.value })}
+                placeholder="e.g. 5 Years"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1.5 ml-1">Photo URL (Optional)</label>
+              <input
+                value={formData.avatar_url}
+                onChange={e => setFormData({ ...formData, avatar_url: e.target.value })}
+                placeholder="https://..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50 transition-all"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              onClick={() => setShowForm(false)}
+              className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2 rounded-xl text-sm font-semibold transition-all shadow-lg"
+            >
+              {editing ? 'Update Member' : 'Create Member'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {staff.map((member) => (
-          <div key={member.id} className="glass rounded-2xl p-5 border border-white/5">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-white font-bold">{member.avatar}</div>
-              <div>
-                <div className="text-white font-semibold">{member.name}</div>
-                <div className="text-xs text-gray-400">{member.specialty}</div>
+          <div key={member.id} className="glass rounded-2xl p-5 border border-white/5 group hover:border-brand-500/30 transition-all duration-300">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                {member.avatar_url ? (
+                  <img src={member.avatar_url} alt={member.name} className="w-12 h-12 rounded-2xl object-cover ring-1 ring-white/10" />
+                ) : (
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-white font-bold text-lg shadow-inner">
+                    {member.avatar}
+                  </div>
+                )}
+                <div>
+                  <div className="text-white font-semibold leading-tight">{member.name}</div>
+                  <div className="text-[10px] text-gray-500 mt-0.5 tracking-wide uppercase font-medium">{member.specialty}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => handleEdit(member)} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-brand-400 transition-colors">
+                  <Settings className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => { if (confirm(`Remove ${member.name}?`)) onDelete(member.id); }} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-red-400 transition-colors">
+                  <LogOut className="w-3.5 h-3.5 rotate-90" />
+                </button>
               </div>
             </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-gray-400">Status</span><StatusBadge status={member.status || (member.available ? 'available' : 'busy')} /></div>
-              <div className="flex justify-between"><span className="text-gray-400">Today's clients</span><span className="text-white">{member.today || member.today_clients || 0}</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">Rating</span><span className="text-gold-300">⭐ {member.rating}</span></div>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center bg-white/3 p-2 rounded-lg">
+                <span className="text-gray-400">Current Status</span>
+                <StatusBadge status={member.status || 'available'} />
+              </div>
+              <div className="flex justify-between px-2 pt-1">
+                <span className="text-gray-500">Exp.</span>
+                <span className="text-gray-300">{member.experience || '3+ Years'}</span>
+              </div>
+              <div className="flex justify-between px-2">
+                <span className="text-gray-500">Rating</span>
+                <span className="text-gold-400 font-medium">⭐ {member.rating}</span>
+              </div>
             </div>
           </div>
         ))}
+        {staff.length === 0 && (
+          <div className="col-span-full py-12 text-center glass rounded-2xl border border-dashed border-white/10">
+            <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+            <p className="text-gray-400 text-sm">No team members yet. Add your first stylist!</p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -352,10 +480,10 @@ export default function OwnerDashboard() {
   const pageMap = useMemo(() => ({
     overview: <OverviewPage profile={profile} metrics={metrics} revenueSeries={revenueSeries} queue={queue} mode={mode} />,
     queue: <QueuePage queue={queue} services={services} onCallNext={callNext} onAddWalkIn={addWalkIn} />,
-    staff: <StaffPage staff={staff} />,
+    staff: <StaffPage staff={staff} onAdd={addStaff} onUpdate={updateStaff} onDelete={deleteStaff} />,
     crm: <CRMPage customers={customers} />,
     reports: <ReportsPage revenueSeries={revenueSeries} peakHours={peakHours} />,
-  }), [addWalkIn, callNext, customers, metrics, mode, peakHours, profile, queue, revenueSeries, services, staff]);
+  }), [addStaff, addWalkIn, callNext, customers, deleteStaff, metrics, mode, peakHours, profile, queue, revenueSeries, services, staff, updateStaff]);
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] flex">

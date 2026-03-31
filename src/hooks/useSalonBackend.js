@@ -140,7 +140,32 @@ function useSampleTenantState(profile) {
     return { error: null };
   }, [staff, tenantId]);
 
-  return { services, staff, customers, bookings, queue, notifications, salons, subscriptions, createBooking, callNext, addWalkIn };
+  const addStaff = useCallback(async ({ name, specialty, experience, avatar_url }) => {
+    const newStaff = {
+      id: `stf-${Date.now()}`,
+      tenant_id: tenantId,
+      name,
+      specialty,
+      experience,
+      avatar: name?.charAt(0) || 'S',
+      avatar_url,
+      available: true,
+      rating: 4.8,
+      today_clients: 0,
+    };
+    // In sample mode, we just update the local state which is fine for UI testing
+    return { data: newStaff, error: null };
+  }, [tenantId]);
+
+  const updateStaff = useCallback(async (id, updates) => {
+    return { data: updates, error: null };
+  }, []);
+
+  const deleteStaff = useCallback(async (id) => {
+    return { error: null };
+  }, []);
+
+  return { services, staff, customers, bookings, queue, notifications, salons, subscriptions, createBooking, callNext, addWalkIn, addStaff, updateStaff, deleteStaff };
 }
 
 export function useCustomerAppData(profile) {
@@ -278,6 +303,8 @@ export function useOwnerDashboardData(profile) {
           status: item.metadata?.available === false ? 'break' : 'available',
           today: item.metadata?.today_clients || 0,
           rating: item.metadata?.rating || 4.8,
+          experience: item.metadata?.experience || '',
+          avatar_url: item.metadata?.avatar_url || '',
           avatar: item.name?.charAt(0) || 'S',
         }));
 
@@ -295,14 +322,61 @@ export function useOwnerDashboardData(profile) {
     }
   }, [tenantId]);
 
+  const addStaff = useCallback(async ({ name, specialty, experience, avatar_url }) => {
+    if (!isSupabaseConfigured || !tenantId) return sampleState.addStaff({ name, specialty, experience, avatar_url });
+    
+    // We create a new user record with role 'staff'
+    const { data: newUser, error } = await supabase.from('users').insert({
+      tenant_id: tenantId,
+      name,
+      role: 'staff',
+      metadata: { 
+        specialty, 
+        experience, 
+        avatar_url,
+        available: true,
+        rating: 5.0,
+        today_clients: 0
+      }
+    }).select().single();
+    
+    if (!error) await load();
+    return { data: newUser, error };
+  }, [load, sampleState, tenantId]);
+
+  const updateStaff = useCallback(async (id, updates) => {
+    if (!isSupabaseConfigured || !tenantId) return sampleState.updateStaff(id, updates);
+    
+    // Update basic fields and metadata
+    const { data: userProfile, error: fetchError } = await supabase.from('users').select('metadata').eq('id', id).single();
+    if (fetchError) return { error: fetchError };
+
+    const { data, error } = await supabase.from('users').update({
+      name: updates.name,
+      metadata: { ...userProfile.metadata, ...updates.metadata }
+    }).eq('id', id).select().single();
+    
+    if (!error) await load();
+    return { data, error };
+  }, [load, sampleState, tenantId]);
+
+  const deleteStaff = useCallback(async (id) => {
+    if (!isSupabaseConfigured || !tenantId) return sampleState.deleteStaff(id);
+    const { error } = await supabase.from('users').delete().eq('id', id);
+    if (!error) await load();
+    return { error };
+  }, [load, sampleState, tenantId]);
+
   useEffect(() => {
     load();
     if (!isSupabaseConfigured || !tenantId) return undefined;
     const offQueue = subscribeToTenantTable({ table: 'queue', tenantId, onChange: load });
     const offBookings = subscribeToTenantTable({ table: 'bookings', tenantId, onChange: load });
+    const offUsers = subscribeToTenantTable({ table: 'users', tenantId, onChange: load });
     return () => {
       offQueue?.();
       offBookings?.();
+      offUsers?.();
     };
   }, [load, tenantId]);
 
@@ -355,6 +429,9 @@ export function useOwnerDashboardData(profile) {
     peakHours: computePeakHours(current.bookings || []),
     callNext,
     addWalkIn,
+    addStaff,
+    updateStaff,
+    deleteStaff,
     mode: !isSupabaseConfigured ? 'sample' : 'live',
   };
 }
