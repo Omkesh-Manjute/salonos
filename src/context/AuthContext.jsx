@@ -30,28 +30,44 @@ export function AuthProvider({ children }) {
 
     // Normalized ID (Firebase: uid)
     const userId = authUser.uid;
+    const phone = authUser.phoneNumber || authUser.phone || '';
+    const email = authUser.email || '';
+    const name = authUser.displayName || authUser.user_metadata?.name || phone || email || 'New User';
+    
+    // Simple role logic: email with @salonos-admin.in is admin, everything else is customer by default
+    const role = email.endsWith('@salonos-admin.in') ? 'admin' : 'customer';
+
+    if (!isSupabaseConfigured) {
+      // Fallback: Use Firebase data as the profile if Supabase is not connected
+      setProfile({
+        id: userId,
+        name,
+        phone,
+        email,
+        role,
+        tenant_id: null,
+        is_demo: false, // It's a real Firebase user, just no Supabase
+      });
+      return;
+    }
+
     const { data: profileData, error: profileError } = await getUserProfile(userId);
 
     if (profileError || !profileData) {
-      // Create new profile if not found
-      const phone = authUser.phoneNumber || authUser.phone || '';
-      const email = authUser.email || '';
-      
-      // Simple role logic: email with @salonos-admin.in is admin, everything else is customer by default
-      // Note: Owners are usually assigned after onboarding, but we can default to customer
-      const role = email.endsWith('@salonos-admin.in') ? 'admin' : 'customer';
-
       const { data: newProfile, error: createError } = await createUserProfile({
         id: userId,
-        name: authUser.displayName || authUser.user_metadata?.name || phone || email || 'New User',
+        name,
         phone,
         email,
         role,
         tenant_id: null,
       });
       
-      if (!createError) {
+      if (!createError && newProfile) {
         setProfile(newProfile);
+      } else {
+        // Final fallback if Supabase insertion fails
+        setProfile({ id: userId, name, phone, email, role, tenant_id: null });
       }
     } else {
       setProfile(profileData);
