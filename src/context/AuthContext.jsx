@@ -75,8 +75,19 @@ export function AuthProvider({ children }) {
       }
     } else {
       // If logging in from a role portal but have a different role, 
-      // we could prompt or just stick to the db. For now, stick to DB.
-      setProfile(profileData);
+      // automatically update the role to match the portal they are using.
+      // This fixes the issue where an owner with a 'customer' role is stuck.
+      if (intendedRole && profileData.role !== intendedRole) {
+        const { data: updatedProfile } = await supabase
+          .from('users')
+          .update({ role: intendedRole })
+          .eq('id', userId)
+          .select()
+          .single();
+        setProfile(updatedProfile || { ...profileData, role: intendedRole });
+      } else {
+        setProfile(profileData);
+      }
       requestNotificationPermission(userId).catch(() => {});
     }
   }, [applyDemoSession]);
