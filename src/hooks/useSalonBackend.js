@@ -196,8 +196,8 @@ export function useCustomerAppData(profile) {
   }, [tenantId, userId]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !tenantId || !userId) return undefined;
     load();
+    if (!isSupabaseConfigured || !tenantId || !userId) return undefined;
     const offQueue = subscribeToTenantTable({ table: 'queue', tenantId, onChange: load });
     const offBookings = subscribeToTenantTable({ table: 'bookings', tenantId, onChange: load });
     return () => {
@@ -296,8 +296,8 @@ export function useOwnerDashboardData(profile) {
   }, [tenantId]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !tenantId) return undefined;
     load();
+    if (!isSupabaseConfigured || !tenantId) return undefined;
     const offQueue = subscribeToTenantTable({ table: 'queue', tenantId, onChange: load });
     const offBookings = subscribeToTenantTable({ table: 'bookings', tenantId, onChange: load });
     return () => {
@@ -383,8 +383,8 @@ export function useAdminDashboardData() {
   }, []);
 
   useEffect(() => {
-    if (!isSupabaseConfigured) return undefined;
     load();
+    if (!isSupabaseConfigured) return undefined;
     const offSalons = subscribeToTenantTable({ table: 'salons', onChange: load });
     return () => offSalons?.();
   }, [load]);
