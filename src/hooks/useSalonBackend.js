@@ -58,7 +58,7 @@ function useSampleTenantState(profile) {
   const tenantId = profile?.tenant_id || 'tenant-sams-creation';
   const userId = profile?.id || 'usr-c-1';
   const [services] = useState(() => cloneSample(sampleServices.filter((item) => item.tenant_id === tenantId)));
-  const [staff] = useState(() => cloneSample(sampleStaff.filter((item) => item.tenant_id === tenantId)));
+  const [staff, setStaff] = useState(() => cloneSample(sampleStaff.filter((item) => item.tenant_id === tenantId)));
   const [customers] = useState(() => cloneSample(sampleCustomers.filter((item) => item.tenant_id === tenantId)));
   const [bookings, setBookings] = useState(() => cloneSample(sampleBookings.filter((item) => item.tenant_id === tenantId)));
   const [queue, setQueue] = useState(() => cloneSample(sampleQueue.filter((item) => item.tenant_id === tenantId)));
