@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Phone,
   Plus,
+  RefreshCw,
   Scissors,
   Search,
   Settings,
@@ -323,8 +324,30 @@ export default function OwnerDashboard() {
   const [activePage, setActivePage] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, loading: authLoading } = useAuth();
   const { metrics, revenueSeries, queue, staff, customers, services, peakHours, loading, error, callNext, addWalkIn, mode } = useOwnerDashboardData(profile);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <RefreshCw className="w-8 h-8 animate-spin text-brand-500" />
+          <p className="text-gray-400 text-sm">Loading SalonOS…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-400">Unable to load profile</p>
+          <button onClick={() => navigate('/login/owner')} className="mt-4 text-brand-400 text-sm">Go to Login</button>
+        </div>
+      </div>
+    );
+  }
 
   const pageMap = useMemo(() => ({
     overview: <OverviewPage profile={profile} metrics={metrics} revenueSeries={revenueSeries} queue={queue} mode={mode} />,

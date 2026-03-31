@@ -334,8 +334,31 @@ export default function CustomerApp() {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [booked, setBooked] = useState(false);
   const navigate = useNavigate();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, loading: authLoading } = useAuth();
+  
   const { services, staff, bookings, queue, notifications, createBooking, loading, error, mode } = useCustomerAppData(profile);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <RefreshCw className="w-8 h-8 animate-spin text-brand-500" />
+          <p className="text-gray-400 text-sm">Loading SalonOS…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-400">Unable to load profile</p>
+          <button onClick={() => navigate('/login/customer')} className="mt-4 text-brand-400 text-sm">Go to Login</button>
+        </div>
+      </div>
+    );
+  }
 
   const bookedMessage = useMemo(() => booked ? 'Booking saved to the backend successfully.' : '', [booked]);
 

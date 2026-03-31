@@ -13,7 +13,7 @@ export default function CustomerLogin() {
   const [step, setStep] = useState('phone'); // 'phone' | 'otp'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const demoMode = !isSupabaseConfigured;
+  const demoMode = false; // Demo disabled for customers
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,13 +50,6 @@ export default function CustomerLogin() {
     }
     setLoading(true);
     try {
-      if (demoMode) {
-        // Demo: skip real SMS
-        setStep('otp');
-        setLoading(false);
-        return;
-      }
-      
       const formatted = formatPhone(phone);
       const { data, error: otpError } = await sendFirebaseOtp(formatted, 'recaptcha-container');
       
@@ -75,16 +68,6 @@ export default function CustomerLogin() {
     if (otp.length !== 6) { setError('Enter the 6-digit OTP.'); return; }
     setLoading(true);
     try {
-      if (demoMode) {
-        if (otp !== DEMO_OTP) throw new Error('Invalid OTP. Use 123456 for demo.');
-        await startDemoSession('customer', {
-          name: 'Priya Customer',
-          phone: formatPhone(phone),
-        });
-        navigate(from, { replace: true });
-        return;
-      }
-
       const { data: user, error: verifyError } = await verifyFirebaseOtp(otp);
       if (verifyError) throw verifyError;
       
@@ -132,13 +115,7 @@ export default function CustomerLogin() {
                 <p className="text-gray-400 text-sm">Enter your mobile number to get an OTP.</p>
               </div>
 
-              {/* Demo badge */}
-              {demoMode && (
-                <div className="flex items-center gap-2 bg-gold-500/10 border border-gold-500/20 rounded-xl p-3 mb-5">
-                  <ShieldCheck className="w-4 h-4 text-gold-400 shrink-0" />
-                  <span className="text-xs text-gold-300">Demo Mode — OTP will be <strong>123456</strong></span>
-                </div>
-              )}
+              {/* No demo badge for customers */}
 
               <form onSubmit={handleSendOtp} className="space-y-4">
                 <div>
@@ -196,7 +173,6 @@ export default function CustomerLogin() {
                 <h2 className="text-2xl font-bold text-white mb-2">Verify OTP</h2>
                 <p className="text-gray-400 text-sm">
                   OTP sent to <span className="text-white">+91 {phone}</span>
-                  {demoMode && <span className="text-gold-400 ml-1">(Demo: use 123456)</span>}
                 </p>
               </div>
 

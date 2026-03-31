@@ -12,9 +12,6 @@ const ROLE_CONTENT = {
     subtitle: 'Access bookings, staff, CRM, reports, and live queue management.',
     cta: 'Login to Dashboard',
     accent: 'text-brand-400',
-    demoEmail: 'owner@demo.salonos.in',
-    demoPassword: 'owner123',
-    demoPhone: '+919999999999',
     redirect: '/dashboard',
     other: '/login/admin',
     otherLabel: 'Admin Login',
@@ -38,10 +35,12 @@ export default function RoleLogin({ role = 'owner' }) {
   const content = useMemo(() => ROLE_CONTENT[role] || ROLE_CONTENT.owner, [role]);
   const [method, setMethod] = useState('email'); // 'email' | 'phone'
   const [step, setStep] = useState('input'); // 'input' | 'otp'
-  const [email, setEmail] = useState(content.demoEmail);
-  const [password, setPassword] = useState(content.demoPassword);
+  const [email, setEmail] = useState(role === 'admin' ? content.demoEmail : '');
+  const [password, setPassword] = useState(role === 'admin' ? content.demoPassword : '');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const demoMode = !isSupabaseConfigured;
 
   const { startDemoSession, refreshProfile } = useAuth();
@@ -72,8 +71,8 @@ export default function RoleLogin({ role = 'owner' }) {
     try {
       const formatted = phone.startsWith('+') ? phone : `+91${phone.replace(/\D/g, '')}`;
       
-      // Demo bypass for phone
-      if (formatted === content.demoPhone) {
+      // Demo bypass for phone (Admin only)
+      if (role === 'admin' && formatted === content.demoPhone) {
         setStep('otp');
         setLoading(false);
         return;
@@ -101,7 +100,7 @@ export default function RoleLogin({ role = 'owner' }) {
     setLoading(true);
 
     try {
-      if (demoMode || (phone.includes('99999') || phone.includes('88888'))) {
+      if (role === 'admin' && (demoMode || phone.includes('88888'))) {
         if (otp !== '123456') throw new Error('Invalid OTP for demo.');
         await startDemoSession(role, { phone });
         navigate(from, { replace: true });
@@ -130,16 +129,16 @@ export default function RoleLogin({ role = 'owner' }) {
     setLoading(true);
 
     try {
-      // Demo bypass for email
-      if (email.endsWith('@demo.salonos.in') && password === content.demoPassword) {
-        await startDemoSession(role, { name: role === 'owner' ? 'Aurangzeb Alamgir' : 'Super Admin', email });
+      // Demo bypass for email (Admin only)
+      if (role === 'admin' && email === content.demoEmail && password === content.demoPassword) {
+        await startDemoSession(role, { name: 'Super Admin', email });
         navigate(from, { replace: true });
         return;
       }
 
-      if (demoMode) {
+      if (role === 'admin' && demoMode) {
         await startDemoSession(role, {
-          name: role === 'owner' ? 'Aurangzeb Alamgir' : 'Super Admin',
+          name: 'Super Admin',
           email,
         });
         navigate(from, { replace: true });
