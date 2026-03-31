@@ -36,13 +36,13 @@ create table if not exists public.salons (
 );
 
 create table if not exists public.users (
-  id uuid primary key references auth.users(id) on delete cascade,
+  id uuid primary key default gen_random_uuid(),
   tenant_id uuid references public.salons(tenant_id) on delete set null,
   salon_id uuid references public.salons(id) on delete set null,
   name text not null,
   phone text,
   email text,
-  role text not null check (role in ('customer', 'owner', 'admin')),
+  role text not null check (role in ('customer', 'owner', 'admin', 'staff')),
   loyalty_points integer not null default 0,
   last_seen_at timestamptz,
   fcm_token text,

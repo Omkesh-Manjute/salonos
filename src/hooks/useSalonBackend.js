@@ -141,8 +141,9 @@ function useSampleTenantState(profile) {
   }, [staff, tenantId]);
 
   const addStaff = useCallback(async ({ name, specialty, experience, avatar_url }) => {
+    const generatedId = crypto.randomUUID?.() || `stf-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const newStaff = {
-      id: `stf-${Date.now()}`,
+      id: generatedId,
       tenant_id: tenantId,
       name,
       specialty,
@@ -153,7 +154,7 @@ function useSampleTenantState(profile) {
       rating: 4.8,
       today_clients: 0,
     };
-    // In sample mode, we just update the local state which is fine for UI testing
+    setStaff((current) => [...current, newStaff]);
     return { data: newStaff, error: null };
   }, [tenantId]);
 
