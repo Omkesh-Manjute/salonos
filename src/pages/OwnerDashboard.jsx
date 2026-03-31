@@ -453,7 +453,7 @@ export default function OwnerDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const { profile, signOut, loading: authLoading } = useAuth();
-  const { metrics, revenueSeries, queue, staff, customers, services, peakHours, loading, error, callNext, addWalkIn, mode } = useOwnerDashboardData(profile);
+  const { metrics, revenueSeries, queue, staff, customers, services, peakHours, loading, error, callNext, addWalkIn, addStaff, updateStaff, deleteStaff, mode } = useOwnerDashboardData(profile);
 
   if (authLoading) {
     return (
