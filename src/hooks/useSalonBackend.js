@@ -277,8 +277,8 @@ export function useCustomerAppData(profile) {
 }
 
 export function useOwnerDashboardData(profile) {
-  const sampleState = useSampleTenantState(profile);
   const tenantId = profile?.tenant_id;
+  const sampleState = useSampleTenantState(profile);
   const [state, setState] = useState({ loading: isSupabaseConfigured, services: [], staff: [], customers: [], bookings: [], queue: [], error: '' });
 
   const load = useCallback(async () => {
