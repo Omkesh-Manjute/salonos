@@ -325,23 +325,36 @@ export function useOwnerDashboardData(profile) {
   const addStaff = useCallback(async ({ name, specialty, experience, avatar_url }) => {
     if (!isSupabaseConfigured || !tenantId) return sampleState.addStaff({ name, specialty, experience, avatar_url });
     
-    // We create a new user record with role 'staff'
-    const { data: newUser, error } = await supabase.from('users').insert({
-      tenant_id: tenantId,
-      name,
-      role: 'staff',
-      metadata: { 
-        specialty, 
-        experience, 
-        avatar_url,
-        available: true,
-        rating: 5.0,
-        today_clients: 0
+    try {
+      // Some databases require an ID to be provided if it's not auto-generated
+      const generatedId = crypto.randomUUID?.() || `usr-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      const { data: newUser, error } = await supabase.from('users').insert({
+        id: generatedId,
+        tenant_id: tenantId,
+        name,
+        role: 'staff',
+        metadata: { 
+          specialty, 
+          experience, 
+          avatar_url,
+          available: true,
+          rating: 5.0,
+          today_clients: 0
+        }
+      }).select().single();
+      
+      if (error) {
+        console.error('Staff creation error:', error);
+        return { data: null, error };
       }
-    }).select().single();
-    
-    if (!error) await load();
-    return { data: newUser, error };
+      
+      await load();
+      return { data: newUser, error: null };
+    } catch (err) {
+      console.error('Unexpected error in addStaff:', err);
+      return { data: null, error: err };
+    }
   }, [load, sampleState, tenantId]);
 
   const updateStaff = useCallback(async (id, updates) => {

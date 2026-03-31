@@ -217,6 +217,8 @@ function QueuePage({ queue, services, onCallNext, onAddWalkIn }) {
 function StaffPage({ staff, onAdd, onUpdate, onDelete }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({ name: '', specialty: '', experience: '', avatar_url: '' });
 
   function handleEdit(member) {
@@ -227,19 +229,34 @@ function StaffPage({ staff, onAdd, onUpdate, onDelete }) {
       experience: member.experience || '',
       avatar_url: member.avatar_url || '',
     });
+    setError('');
     setShowForm(true);
   }
 
   async function handleSubmit() {
     if (!formData.name.trim()) return;
-    if (editing) {
-      await onUpdate(editing, { name: formData.name, metadata: { specialty: formData.specialty, experience: formData.experience, avatar_url: formData.avatar_url } });
-    } else {
-      await onAdd(formData);
+    setSaving(true);
+    setError('');
+    try {
+      let result;
+      if (editing) {
+        result = await onUpdate(editing, { name: formData.name, metadata: { specialty: formData.specialty, experience: formData.experience, avatar_url: formData.avatar_url } });
+      } else {
+        result = await onAdd(formData);
+      }
+      
+      if (result?.error) {
+        throw new Error(result.error.message || 'Failed to save staff member.');
+      }
+
+      setFormData({ name: '', specialty: '', experience: '', avatar_url: '' });
+      setEditing(null);
+      setShowForm(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
     }
-    setFormData({ name: '', specialty: '', experience: '', avatar_url: '' });
-    setEditing(null);
-    setShowForm(false);
   }
 
   return (
@@ -301,17 +318,28 @@ function StaffPage({ staff, onAdd, onUpdate, onDelete }) {
               />
             </div>
           </div>
+          
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl flex items-center gap-2">
+              <div className="w-1 h-1 rounded-full bg-red-400" />
+              {error}
+            </div>
+          )}
+
           <div className="flex justify-end gap-3 pt-2">
             <button
               onClick={() => setShowForm(false)}
-              className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+              disabled={saving}
+              className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
-              className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2 rounded-xl text-sm font-semibold transition-all shadow-lg"
+              disabled={saving}
+              className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2 rounded-xl text-sm font-semibold transition-all shadow-lg flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
             >
+              {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
               {editing ? 'Update Member' : 'Create Member'}
             </button>
           </div>
