@@ -26,7 +26,7 @@ export default function CustomerLogin() {
     try {
       const { data, error: authError } = await signInWithGoogle();
       if (authError) throw authError;
-      await refreshProfile();
+      await refreshProfile('customer');
       navigate(from, { replace: true });
     } catch (err) {
       setError(err.message || 'Google login failed.');
@@ -72,7 +72,7 @@ export default function CustomerLogin() {
       if (verifyError) throw verifyError;
       
       // Wait for AuthContext to pick up the Firebase user and sync with Supabase
-      await refreshProfile();
+      await refreshProfile('customer');
       navigate(from, { replace: true });
     } catch (err) {
       setError(err.message || 'Invalid OTP. Please try again.');

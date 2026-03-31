@@ -16,38 +16,42 @@ export function AuthProvider({ children }) {
     setProfile(session?.profile ?? null);
   }, []);
 
-  const loadProfile = useCallback(async (authUser) => {
+  const loadProfile = useCallback(async (authUser, intendedRole = null) => {
     if (!authUser) {
       setProfile(null);
       return;
     }
-
-    if (!isSupabaseConfigured) {
-      const cachedDemo = readDemoSession();
-      if (cachedDemo) applyDemoSession(cachedDemo);
-      return;
-    }
-
+    
     // Normalized ID (Firebase: uid)
     const userId = authUser.uid;
     const phone = authUser.phoneNumber || authUser.phone || '';
     const email = authUser.email || '';
     const name = authUser.displayName || authUser.user_metadata?.name || phone || email || 'New User';
     
-    // Simple role logic: email with @salonos-admin.in is admin, everything else is customer by default
-    const role = email.endsWith('@salonos-admin.in') ? 'admin' : 'customer';
+    // Simple role logic: 
+    // 1. Specified Admin email
+    // 2. Intended Role from the portal (Login/Sign-up)
+    // 3. Defaults to 'customer'
+    let role = 'customer';
+    if (email.endsWith('@salonos-admin.in')) role = 'admin';
+    else if (intendedRole) role = intendedRole;
 
     if (!isSupabaseConfigured) {
-      // Fallback: Use Firebase data as the profile if Supabase is not connected
-      setProfile({
-        id: userId,
-        name,
-        phone,
-        email,
-        role,
-        tenant_id: null,
-        is_demo: false, // It's a real Firebase user, just no Supabase
-      });
+      const cachedDemo = readDemoSession();
+      if (cachedDemo) {
+        applyDemoSession(cachedDemo);
+      } else {
+        // Fallback: Use Firebase data as the profile if Supabase is not connected
+        setProfile({
+          id: userId,
+          name,
+          phone,
+          email,
+          role,
+          tenant_id: null,
+          is_demo: false,
+        });
+      }
       return;
     }
 
@@ -70,6 +74,8 @@ export function AuthProvider({ children }) {
         setProfile({ id: userId, name, phone, email, role, tenant_id: null });
       }
     } else {
+      // If logging in from a role portal but have a different role, 
+      // we could prompt or just stick to the db. For now, stick to DB.
       setProfile(profileData);
       requestNotificationPermission(userId).catch(() => {});
     }
@@ -173,7 +179,7 @@ export function AuthProvider({ children }) {
     signOut,
     attachTenant,
     startDemoSession,
-    refreshProfile: () => (user ? loadProfile(user) : Promise.resolve()),
+    refreshProfile: (forcedRole = null) => (user ? loadProfile(user, forcedRole) : Promise.resolve()),
     defaultPathForRole,
   };
 

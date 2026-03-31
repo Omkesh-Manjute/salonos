@@ -54,7 +54,7 @@ export default function RoleLogin({ role = 'owner' }) {
     try {
       const { data, error: authError } = await signInWithGoogle();
       if (authError) throw authError;
-      await refreshProfile();
+      await refreshProfile(role);
       navigate(from, { replace: true });
     } catch (err) {
       setError(err.message || 'Google login failed.');
@@ -103,7 +103,7 @@ export default function RoleLogin({ role = 'owner' }) {
 
       const { error: verifyError } = await verifyFirebaseOtp(otp);
       if (verifyError) throw verifyError;
-      await refreshProfile();
+      await refreshProfile(role);
       navigate(from, { replace: true });
     } catch (err) {
       setError(err.message || 'OTP verification failed.');
@@ -134,7 +134,7 @@ export default function RoleLogin({ role = 'owner' }) {
       if (authError) throw authError;
 
       // Ensure profile is loaded before redirecting
-      await refreshProfile();
+      await refreshProfile(role);
       navigate(from, { replace: true });
     } catch (err) {
       setError(err.message || 'Unable to sign in right now.');
