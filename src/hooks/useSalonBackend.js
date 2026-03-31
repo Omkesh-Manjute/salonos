@@ -348,9 +348,6 @@ export function useOwnerDashboardData(profile) {
       if (error) {
         console.error('Staff creation error:', error);
         // Special check for type mismatch
-        if (error.message?.includes('invalid input syntax for type uuid')) {
-          return { data: null, error: { message: 'Database Type Error: Your tenant_id column expects a UUID but we are using a string. Please run the SQL fix again.' } };
-        }
         return { data: null, error };
       }
       
