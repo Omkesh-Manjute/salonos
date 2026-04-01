@@ -12,6 +12,7 @@ import {
   listSalons,
   listServicesByTenant,
   listStaffByOwner,
+  listStaffByTenant,
   listUsersByTenant,
   resequenceQueue,
   subscribeToTenantTable,
@@ -230,15 +231,21 @@ export function useCustomerAppData(profile) {
 
       // 2. Fetch everything else using the identified salon's IDs
       const activeTenant = tenantId || salon?.tenant_id;
-      const [servicesRes, bookingsRes, queueRes, notificationsRes, staffRes] = await Promise.all([
+      const [servicesRes, bookingsRes, queueRes, notificationsRes, staffRes, staffByTenantRes] = await Promise.all([
         activeTenant ? listServicesByTenant(activeTenant) : Promise.resolve({ data: [] }),
         listBookings({ tenantId: activeTenant, userId }),
         activeTenant ? getQueueByTenant(activeTenant) : Promise.resolve({ data: [] }),
         listNotifications(userId),
         ownerId ? listStaffByOwner(ownerId) : Promise.resolve({ data: [] }),
+        activeTenant ? listStaffByTenant(activeTenant) : Promise.resolve({ data: [] }),
       ]);
 
-      const staff = (staffRes.data || []).map((item) => ({
+      // Merge staff from both sources, deduplicate by id
+      const staffMap = new Map();
+      for (const item of [...(staffRes.data || []), ...(staffByTenantRes.data || [])]) {
+        staffMap.set(item.id, item);
+      }
+      const staff = [...staffMap.values()].map((item) => ({
         id: item.id,
         name: item.name,
         specialty: item.specialty || 'Salon Expert',
@@ -399,6 +406,7 @@ export function useOwnerDashboardData(profile) {
     try {
       const { data: newStaff, error } = await addStaffMember({
         owner_id: ownerId,
+        tenant_id: tenantId,
         name,
         specialty,
         experience,

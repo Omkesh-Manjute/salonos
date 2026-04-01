@@ -148,6 +148,12 @@ export async function listStaffByOwner(ownerId) {
   return { data, error };
 }
 
+export async function listStaffByTenant(tenantId) {
+  const { data, error } = await supabase.from('staff').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
+  if (error) console.log("ERROR:", error);
+  return { data, error };
+}
+
 export async function addStaffMember(staffData) {
   const { data, error } = await supabase.from('staff').insert(staffData).select().single();
   if (error) console.log("ERROR:", error);

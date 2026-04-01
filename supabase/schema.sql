@@ -21,6 +21,7 @@ create table if not exists public.salons (
   tenant_id uuid not null unique default gen_random_uuid(),
   name text not null,
   slug text not null unique,
+  owner_id uuid,
   owner_user_id uuid references auth.users(id) on delete set null,
   owner_name text,
   email text,
@@ -144,6 +145,23 @@ create table if not exists public.notifications (
 );
 create index if not exists notifications_user_idx on public.notifications (user_id, created_at desc);
 
+create table if not exists public.staff (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.salons(tenant_id) on delete cascade,
+  owner_id uuid not null,
+  name text not null,
+  specialty text,
+  experience text,
+  avatar_url text,
+  available boolean not null default true,
+  rating numeric(3,1) not null default 5.0,
+  today_clients integer not null default 0,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+create index if not exists staff_owner_idx on public.staff (owner_id);
+create index if not exists staff_tenant_idx on public.staff (tenant_id);
+
 create or replace function public.touch_updated_at()
 returns trigger
 language plpgsql
@@ -210,6 +228,8 @@ drop trigger if exists touch_queue_updated_at on public.queue;
 create trigger touch_queue_updated_at before update on public.queue for each row execute procedure public.touch_updated_at();
 drop trigger if exists touch_subscriptions_updated_at on public.subscriptions;
 create trigger touch_subscriptions_updated_at before update on public.subscriptions for each row execute procedure public.touch_updated_at();
+drop trigger if exists touch_staff_updated_at on public.staff;
+create trigger touch_staff_updated_at before update on public.staff for each row execute procedure public.touch_updated_at();
 
 drop trigger if exists queue_assign_position on public.queue;
 create trigger queue_assign_position before insert on public.queue for each row execute procedure public.assign_queue_position();
@@ -221,6 +241,7 @@ alter table public.bookings enable row level security;
 alter table public.queue enable row level security;
 alter table public.subscriptions enable row level security;
 alter table public.notifications enable row level security;
+alter table public.staff enable row level security;
 
 create policy if not exists "admins_manage_salons" on public.salons
 for all using (public.current_user_role() = 'admin') with check (public.current_user_role() = 'admin');
@@ -274,3 +295,8 @@ create policy if not exists "tenant_notifications_visible" on public.notificatio
 for select using (tenant_id = public.current_tenant_id() or user_id = auth.uid());
 create policy if not exists "owners_manage_notifications" on public.notifications
 for all using (tenant_id = public.current_tenant_id() and public.current_user_role() = 'owner') with check (tenant_id = public.current_tenant_id() and public.current_user_role() = 'owner');
+
+create policy if not exists "staff_tenant_visible" on public.staff
+for select using (tenant_id = public.current_tenant_id());
+create policy if not exists "owners_manage_staff" on public.staff
+for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
