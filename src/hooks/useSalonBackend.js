@@ -284,15 +284,17 @@ export function useOwnerDashboardData(profile) {
   const [state, setState] = useState({ loading: isSupabaseConfigured, services: [], staff: [], customers: [], bookings: [], queue: [], error: '' });
 
   const load = useCallback(async () => {
-    if (!isSupabaseConfigured || !tenantId) {
+    const ownerId = profile?.id; // Firebase UID
+    if (!isSupabaseConfigured || !ownerId) {
       setState((current) => ({ ...current, loading: false }));
       return;
     }
-    const ownerId = profile?.id; // Firebase UID
+
     try {
+      // Prioritize ownerId for scoping, tenantId is secondary
       const [servicesRes, customersRes, bookingsRes, queueRes, staffRes] = await Promise.all([
-        listServicesByTenant(tenantId),
-        listUsersByTenant(tenantId, 'customer'),
+        tenantId ? listServicesByTenant(tenantId) : Promise.resolve({ data: [] }),
+        tenantId ? listUsersByTenant(tenantId, 'customer') : Promise.resolve({ data: [] }),
         listBookings({ tenantId, ownerId }),
         getQueueByTenant(tenantId, ownerId),
         listStaffByOwner(ownerId),
@@ -318,7 +320,7 @@ export function useOwnerDashboardData(profile) {
         bookings: bookingsRes.data || [],
         queue: queueRes.data || [],
         staff,
-        error: servicesRes.error?.message || customersRes.error?.message || bookingsRes.error?.message || queueRes.error?.message || staffRes.error?.message || '',
+        error: (servicesRes.error?.message || customersRes.error?.message || bookingsRes.error?.message || queueRes.error?.message || staffRes.error?.message) || '',
       });
     } catch (error) {
       console.log("ERROR loading dashboard:", error);
@@ -327,9 +329,8 @@ export function useOwnerDashboardData(profile) {
   }, [tenantId, profile?.id]);
 
   const addStaff = useCallback(async ({ name, specialty, experience, avatar_url }) => {
-    if (!isSupabaseConfigured || !tenantId) return sampleState.addStaff({ name, specialty, experience, avatar_url });
-    
     const ownerId = profile?.id; // Firebase UID
+    if (!isSupabaseConfigured || !ownerId) return sampleState.addStaff({ name, specialty, experience, avatar_url });
     if (!ownerId) {
       console.log("ERROR: No owner_id (user.uid) found");
       return { error: { message: 'Owner ID missing' } };
@@ -358,44 +359,53 @@ export function useOwnerDashboardData(profile) {
   }, [load, sampleState, tenantId, profile?.id]);
 
   const updateStaff = useCallback(async (id, updates) => {
-    if (!isSupabaseConfigured || !tenantId) return sampleState.updateStaff(id, updates);
+    const ownerId = profile?.id;
+    if (!isSupabaseConfigured || !ownerId) return sampleState.updateStaff(id, updates);
     
-    // Update basic fields and metadata
-    const { data: userProfile, error: fetchError } = await supabase.from('users').select('metadata').eq('id', id).single();
-    if (fetchError) return { error: fetchError };
-
-    const { data, error } = await supabase.from('users').update({
+    const { data, error } = await supabase.from('staff').update({
       name: updates.name,
-      metadata: { ...userProfile.metadata, ...updates.metadata }
+      specialty: updates.specialty,
+      experience: updates.experience,
+      avatar_url: updates.avatar_url,
+      available: updates.available,
+      rating: updates.rating,
+      today_clients: updates.today_clients
     }).eq('id', id).select().single();
     
+    if (error) console.log("ERROR updating staff:", error);
     if (!error) await load();
     return { data, error };
-  }, [load, sampleState, tenantId]);
+  }, [load, sampleState, profile?.id]);
 
   const deleteStaff = useCallback(async (id) => {
-    if (!isSupabaseConfigured || !tenantId) return sampleState.deleteStaff(id);
+    const ownerId = profile?.id;
+    if (!isSupabaseConfigured || !ownerId) return sampleState.deleteStaff(id);
     const { error } = await supabase.from('staff').delete().eq('id', id);
     if (error) console.log("ERROR deleting staff:", error);
     if (!error) await load();
     return { error };
-  }, [load, sampleState, tenantId]);
+  }, [load, sampleState, profile?.id]);
 
   useEffect(() => {
     load();
-    if (!isSupabaseConfigured || !tenantId) return undefined;
+    const ownerId = profile?.id;
+    if (!isSupabaseConfigured || !ownerId) return undefined;
+    
+    // Subscribe to all relevant tables. Changes will trigger 'load' which handles filtering.
     const offQueue = subscribeToTenantTable({ table: 'queue', tenantId, onChange: load });
     const offBookings = subscribeToTenantTable({ table: 'bookings', tenantId, onChange: load });
-    const offUsers = subscribeToTenantTable({ table: 'users', tenantId, onChange: load });
+    const offStaff = subscribeToTenantTable({ table: 'staff', onChange: load }); // Listening to all staff changes
+    
     return () => {
       offQueue?.();
       offBookings?.();
-      offUsers?.();
+      offStaff?.();
     };
-  }, [load, tenantId]);
+  }, [load, tenantId, profile?.id]);
 
   const callNext = useCallback(async () => {
-    if (!isSupabaseConfigured || !tenantId) return sampleState.callNext();
+    const ownerId = profile?.id;
+    if (!isSupabaseConfigured || !ownerId) return sampleState.callNext();
     const currentActive = state.queue.find((item) => item.status === 'in_progress');
     if (currentActive) await updateQueueEntry(currentActive.id, { status: 'done' });
     const nextQueue = state.queue.find((item) => item.status === 'next') || state.queue.find((item) => item.status === 'waiting');
@@ -413,8 +423,8 @@ export function useOwnerDashboardData(profile) {
   }, [load, sampleState, state.queue, tenantId]);
 
   const addWalkIn = useCallback(async ({ customerName, serviceName }) => {
-    if (!isSupabaseConfigured || !tenantId) return sampleState.addWalkIn({ customerName, serviceName });
     const ownerId = profile?.id;
+    if (!isSupabaseConfigured || !ownerId) return sampleState.addWalkIn({ customerName, serviceName });
     const entry = await addToQueue({ 
       tenant_id: tenantId, 
       owner_id: ownerId,
