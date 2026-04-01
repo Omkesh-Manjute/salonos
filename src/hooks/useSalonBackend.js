@@ -5,6 +5,7 @@ import {
   createBookingWithQueue,
   getQueueByTenant,
   getSalonByTenant,
+  getSalonsByOwner,
   isSupabaseConfigured,
   listBookings,
   listNotifications,
