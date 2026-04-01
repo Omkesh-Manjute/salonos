@@ -163,9 +163,10 @@ function QueuePage({ queue, services, onCallNext, onAddWalkIn }) {
   const [name, setName] = useState('');
   const [serviceName, setServiceName] = useState(services[0]?.name || 'Haircut');
 
-  async function submitWalkIn() {
+  async function handleAddWalkIn() {
     if (!name.trim()) return;
-    await onAddWalkIn({ customerName: name, serviceName });
+    const { error } = await onAddWalkIn({ customerName: name, serviceName });
+    if (error) console.log("ERROR adding walk-in:", error);
     setName('');
     setShowAdd(false);
   }
@@ -188,7 +189,7 @@ function QueuePage({ queue, services, onCallNext, onAddWalkIn }) {
           <select value={serviceName} onChange={(event) => setServiceName(event.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none">
             {services.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}
           </select>
-          <button onClick={submitWalkIn} className="bg-gradient-to-r from-brand-600 to-brand-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold">Save</button>
+          <button onClick={handleAddWalkIn} className="bg-gradient-to-r from-brand-600 to-brand-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold">Save</button>
         </div>
       )}
       <div className="glass rounded-2xl border border-white/5 overflow-hidden">
@@ -233,7 +234,7 @@ function StaffPage({ staff, onAdd, onUpdate, onDelete }) {
     setShowForm(true);
   }
 
-  async function handleSubmit() {
+  async function handleAddMember() {
     if (!formData.name.trim()) return;
     setSaving(true);
     setError('');
@@ -246,6 +247,7 @@ function StaffPage({ staff, onAdd, onUpdate, onDelete }) {
       }
       
       if (result?.error) {
+        console.log("ERROR in handleAddMember:", result.error);
         throw new Error(result.error.message || 'Failed to save staff member.');
       }
 
@@ -335,7 +337,7 @@ function StaffPage({ staff, onAdd, onUpdate, onDelete }) {
               Cancel
             </button>
             <button
-              onClick={handleSubmit}
+              onClick={handleAddMember}
               disabled={saving}
               className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2 rounded-xl text-sm font-semibold transition-all shadow-lg flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
             >

@@ -8,43 +8,63 @@ export const isSupabaseConfigured = !supabaseUrl.includes('demo.supabase.co') &&
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function getUserProfile(userId) {
-  return supabase.from('users').select('*').eq('id', userId).single();
+  const { data, error } = await supabase.from('users').select('*').eq('id', userId).single();
+  if (error) console.log("ERROR:", error);
+  return { data, error };
 }
 
 export async function createUserProfile(profile) {
-  return supabase.from('users').insert(profile).select().single();
+  const { data, error } = await supabase.from('users').insert(profile).select().single();
+  if (error) console.log("ERROR:", error);
+  return { data, error };
 }
 
 export async function updateUserProfile(userId, updates) {
-  return supabase.from('users').update(updates).eq('id', userId).select().single();
+  const { data, error } = await supabase.from('users').update(updates).eq('id', userId).select().single();
+  if (error) console.log("ERROR:", error);
+  return { data, error };
 }
 
 export async function createSalon(data) {
-  return supabase.from('salons').insert(data).select().single();
+  const { data: result, error } = await supabase.from('salons').insert(data).select().single();
+  if (error) console.log("ERROR:", error);
+  return { data: result, error };
 }
 
 export async function getSalonById(id) {
-  return supabase.from('salons').select('*').eq('id', id).single();
+  const { data, error } = await supabase.from('salons').select('*').eq('id', id).single();
+  if (error) console.log("ERROR:", error);
+  return { data, error };
 }
 
 export async function listSalons() {
-  return supabase.from('salons').select('*').order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('salons').select('*').order('created_at', { ascending: false });
+  if (error) console.log("ERROR:", error);
+  return { data, error };
 }
 
 export async function listServicesByTenant(tenantId) {
-  return supabase.from('services').select('*').eq('tenant_id', tenantId).eq('active', true).order('name');
+  const { data, error } = await supabase.from('services').select('*').eq('tenant_id', tenantId).eq('active', true).order('name');
+  if (error) console.log("ERROR:", error);
+  return { data, error };
 }
 
 export async function createBooking(booking) {
-  return supabase.from('bookings').insert(booking).select().single();
+  const { data, error } = await supabase.from('bookings').insert(booking).select().single();
+  if (error) console.log("ERROR:", error);
+  return { data, error };
 }
 
-export async function listBookings({ tenantId, userId, limit } = {}) {
+export async function listBookings({ tenantId, userId, ownerId, limit } = {}) {
   let query = supabase.from('bookings').select('*').order('booking_time', { ascending: true });
   if (tenantId) query = query.eq('tenant_id', tenantId);
   if (userId) query = query.eq('user_id', userId);
+  if (ownerId) query = query.eq('owner_id', ownerId);
   if (limit) query = query.limit(limit);
-  return query;
+  
+  const { data, error } = await query;
+  if (error) console.log("ERROR:", error);
+  return { data, error };
 }
 
 export async function getBookingsByTenant(tenantId) {
@@ -52,19 +72,31 @@ export async function getBookingsByTenant(tenantId) {
 }
 
 export async function updateBookingStatus(id, status) {
-  return supabase.from('bookings').update({ status }).eq('id', id).select().single();
+  const { data, error } = await supabase.from('bookings').update({ status }).eq('id', id).select().single();
+  if (error) console.log("ERROR:", error);
+  return { data, error };
 }
 
-export async function getQueueByTenant(tenantId) {
-  return supabase.from('queue').select('*').eq('tenant_id', tenantId).order('position', { ascending: true });
+export async function getQueueByTenant(tenantId, ownerId) {
+  let query = supabase.from('queue').select('*').order('position', { ascending: true });
+  if (tenantId) query = query.eq('tenant_id', tenantId);
+  if (ownerId) query = query.eq('owner_id', ownerId);
+  
+  const { data, error } = await query;
+  if (error) console.log("ERROR:", error);
+  return { data, error };
 }
 
 export async function addToQueue(entry) {
-  return supabase.from('queue').insert(entry).select().single();
+  const { data, error } = await supabase.from('queue').insert(entry).select().single();
+  if (error) console.log("ERROR:", error);
+  return { data, error };
 }
 
 export async function updateQueueEntry(id, updates) {
-  return supabase.from('queue').update(updates).eq('id', id).select().single();
+  const { data, error } = await supabase.from('queue').update(updates).eq('id', id).select().single();
+  if (error) console.log("ERROR:", error);
+  return { data, error };
 }
 
 export async function resequenceQueue(tenantId) {
@@ -93,17 +125,36 @@ export async function listNotifications(userId) {
 }
 
 export async function markNotificationRead(id) {
-  return supabase.from('notifications').update({ read_status: true }).eq('id', id).select().single();
+  const { data, error } = await supabase.from('notifications').update({ read_status: true }).eq('id', id).select().single();
+  if (error) console.log("ERROR:", error);
+  return { data, error };
+}
+
+export async function listStaffByOwner(ownerId) {
+  const { data, error } = await supabase.from('staff').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false });
+  if (error) console.log("ERROR:", error);
+  return { data, error };
+}
+
+export async function addStaffMember(staffData) {
+  const { data, error } = await supabase.from('staff').insert(staffData).select().single();
+  if (error) console.log("ERROR:", error);
+  return { data, error };
 }
 
 export async function listUsersByTenant(tenantId, role) {
   let query = supabase.from('users').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   if (role) query = query.eq('role', role);
-  return query;
+  
+  const { data, error } = await query;
+  if (error) console.log("ERROR:", error);
+  return { data, error };
 }
 
 export async function upsertSubscription(data) {
-  return supabase.from('subscriptions').upsert(data, { onConflict: 'tenant_id' }).select().single();
+  const { data: result, error } = await supabase.from('subscriptions').upsert(data, { onConflict: 'tenant_id' }).select().single();
+  if (error) console.log("ERROR:", error);
+  return { data: result, error };
 }
 
 export function subscribeToTenantTable({ table, tenantId, onChange, filter }) {
