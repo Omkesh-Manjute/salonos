@@ -241,7 +241,7 @@ function StaffPage({ staff, onAdd, onUpdate, onDelete }) {
     try {
       let result;
       if (editing) {
-        result = await onUpdate(editing, { name: formData.name, metadata: { specialty: formData.specialty, experience: formData.experience, avatar_url: formData.avatar_url } });
+        result = await onUpdate(editing, { name: formData.name, specialty: formData.specialty, experience: formData.experience, avatar_url: formData.avatar_url });
       } else {
         result = await onAdd(formData);
       }

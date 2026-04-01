@@ -91,7 +91,11 @@ function BookingFlow({ services, staff, salon, onClose, onConfirm, loading }) {
         {step === 1 && staff.map((item) => (
           <button key={item.id} onClick={() => { setSelected((current) => ({ ...current, staffName: item.name })); setStep(2); }} className={`w-full text-left glass rounded-2xl p-4 border transition-all ${selected.staffName === item.name ? 'border-brand-500/60' : 'border-white/10 hover:border-brand-500/30'}`}>
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-white font-bold">{item.avatar || item.name.charAt(0)}</div>
+              {item.avatar_url ? (
+                <img src={item.avatar_url} alt={item.name} className="w-11 h-11 rounded-2xl object-cover" />
+              ) : (
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-white font-bold">{item.avatar || item.name.charAt(0)}</div>
+              )}
               <div className="flex-1">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-white">{item.name}</h3>
@@ -222,7 +226,11 @@ function HomeTab({ profile, bookings, queue, services, staff, mode, openBooking 
         <div className="space-y-3">
           {staff.slice(0, 2).map((item) => (
             <div key={item.id} className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-white font-bold">{item.avatar || item.name.charAt(0)}</div>
+              {item.avatar_url ? (
+                <img src={item.avatar_url} alt={item.name} className="w-10 h-10 rounded-2xl object-cover" />
+              ) : (
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-white font-bold">{item.avatar || item.name.charAt(0)}</div>
+              )}
               <div className="flex-1">
                 <div className="text-sm text-white font-medium">{item.name}</div>
                 <div className="text-xs text-gray-400">{item.specialty}</div>

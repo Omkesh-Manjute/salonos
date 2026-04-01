@@ -7,10 +7,10 @@ export const sampleServices = [
 ];
 
 export const sampleStaff = [
-  { id: 'stf-1', tenant_id: 'tenant-sams-creation', name: 'Ravi Kumar', specialty: 'Hair & Color', rating: 4.9, experience: '8 yrs', available: true, today_clients: 8, avatar: 'R' },
-  { id: 'stf-2', tenant_id: 'tenant-sams-creation', name: 'Priya Sharma', specialty: 'Skin & Facial', rating: 4.8, experience: '6 yrs', available: true, today_clients: 5, avatar: 'P' },
-  { id: 'stf-3', tenant_id: 'tenant-sams-creation', name: 'Amit Singh', specialty: 'Grooming', rating: 4.7, experience: '5 yrs', available: false, today_clients: 6, avatar: 'A' },
-  { id: 'stf-4', tenant_id: 'tenant-sams-creation', name: 'Neha Patel', specialty: 'Hair Spa', rating: 4.9, experience: '7 yrs', available: true, today_clients: 7, avatar: 'N' },
+  { id: 'stf-1', tenant_id: 'tenant-sams-creation', name: 'Ravi Kumar', specialty: 'Hair & Color', rating: 4.9, experience: '8 yrs', available: true, today_clients: 8, avatar: 'R', avatar_url: '' },
+  { id: 'stf-2', tenant_id: 'tenant-sams-creation', name: 'Priya Sharma', specialty: 'Skin & Facial', rating: 4.8, experience: '6 yrs', available: true, today_clients: 5, avatar: 'P', avatar_url: '' },
+  { id: 'stf-3', tenant_id: 'tenant-sams-creation', name: 'Amit Singh', specialty: 'Grooming', rating: 4.7, experience: '5 yrs', available: false, today_clients: 6, avatar: 'A', avatar_url: '' },
+  { id: 'stf-4', tenant_id: 'tenant-sams-creation', name: 'Neha Patel', specialty: 'Hair Spa', rating: 4.9, experience: '7 yrs', available: true, today_clients: 7, avatar: 'N', avatar_url: '' },
 ];
 
 export const sampleCustomers = [

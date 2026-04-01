@@ -246,6 +246,8 @@ export function useCustomerAppData(profile) {
         experience: item.experience || '5 yrs',
         available: item.available ?? true,
         avatar: item.name?.charAt(0) || 'S',
+        avatar_url: item.avatar_url || '',
+        today_clients: item.today_clients || 0,
       }));
 
       setState({
@@ -269,9 +271,11 @@ export function useCustomerAppData(profile) {
     if (!isSupabaseConfigured || !tenantId || !userId) return undefined;
     const offQueue = subscribeToTenantTable({ table: 'queue', tenantId, onChange: load });
     const offBookings = subscribeToTenantTable({ table: 'bookings', tenantId, onChange: load });
+    const offStaff = subscribeToTenantTable({ table: 'staff', onChange: load });
     return () => {
       offQueue?.();
       offBookings?.();
+      offStaff?.();
     };
   }, [load, tenantId, userId]);
 
