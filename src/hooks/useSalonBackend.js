@@ -210,6 +210,21 @@ export function useCustomerAppData(profile) {
         if (salons?.length > 0) {
           salon = salons[0];
           ownerId = salon.owner_id || salon.owner_user_id;
+        } else {
+          // Check if this user is an "owner" and has staff - auto-provision if so
+          const { data: staffList } = await listStaffByOwner(userId);
+          if (staffList?.length > 0) {
+            console.log("Auto-provisioning salon for owner in Customer App...");
+            const { data: newSalon } = await supabase.from('salons').insert({
+              owner_id: userId,
+              name: "Sam's Creation",
+              tenant_id: `tenant-${userId.substring(0, 8)}`,
+            }).select().single();
+            if (newSalon) {
+              salon = newSalon;
+              ownerId = userId;
+            }
+          }
         }
       }
 
@@ -340,6 +355,19 @@ export function useOwnerDashboardData(profile) {
           avatar: item.name?.charAt(0) || 'S',
         }));
 
+      let salon = (salonsRes.data && salonsRes.data[0]) || null;
+      
+      // Auto-provision a salon if missing for an owner with staff
+      if (!salon && staffRes.data?.length > 0) {
+        console.log("Auto-provisioning salon for owner...");
+        const { data: newSalon } = await supabase.from('salons').insert({
+          owner_id: ownerId,
+          name: "Sam's Creation",
+          tenant_id: `tenant-${ownerId.substring(0, 8)}`,
+        }).select().single();
+        if (newSalon) salon = newSalon;
+      }
+
       setState({
         loading: false,
         services: servicesRes.data || [],
@@ -347,7 +375,7 @@ export function useOwnerDashboardData(profile) {
         bookings: bookingsRes.data || [],
         queue: queueRes.data || [],
         staff,
-        salon: (salonsRes.data && salonsRes.data[0]) || null,
+        salon,
         error: (servicesRes.error?.message || customersRes.error?.message || bookingsRes.error?.message || queueRes.error?.message || staffRes.error?.message || salonsRes.error?.message) || '',
       });
     } catch (error) {
