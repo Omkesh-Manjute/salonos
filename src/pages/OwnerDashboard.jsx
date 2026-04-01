@@ -46,7 +46,7 @@ function StatusBadge({ status }) {
   return <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${map[status] || 'bg-white/10 text-gray-300'}`}>{status.replace('_', ' ')}</span>;
 }
 
-function Sidebar({ active, setActive, open, setOpen, profile }) {
+function Sidebar({ active, setActive, open, setOpen, profile, salon }) {
   return (
     <>
       {open && <div className="fixed inset-0 bg-black/60 z-20 lg:hidden" onClick={() => setOpen(false)} />}
@@ -56,8 +56,8 @@ function Sidebar({ active, setActive, open, setOpen, profile }) {
             <Scissors className="w-4 h-4 text-white" />
           </div>
           <div>
-            <div className="font-bold text-white text-sm">Sam's Creation</div>
-            <div className="text-xs text-brand-400">Salon Dashboard</div>
+            <div className="font-bold text-white text-sm">{salon?.name || "Sam's Creation"}</div>
+            <div className="text-xs text-brand-400">{salon ? 'Verified Salon' : 'Setup Required'}</div>
           </div>
         </div>
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
@@ -483,7 +483,7 @@ export default function OwnerDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const { profile, signOut, loading: authLoading } = useAuth();
-  const { metrics, revenueSeries, queue, staff, customers, services, peakHours, loading, error, callNext, addWalkIn, addStaff, updateStaff, deleteStaff, mode } = useOwnerDashboardData(profile);
+  const { metrics, revenueSeries, queue, staff, customers, services, peakHours, salon, loading, error, callNext, addWalkIn, addStaff, updateStaff, deleteStaff, mode } = useOwnerDashboardData(profile);
 
   if (authLoading) {
     return (
@@ -517,7 +517,7 @@ export default function OwnerDashboard() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] flex">
-      <Sidebar active={activePage} setActive={setActivePage} open={sidebarOpen} setOpen={setSidebarOpen} profile={profile} />
+      <Sidebar active={activePage} setActive={setActivePage} open={sidebarOpen} setOpen={setSidebarOpen} profile={profile} salon={salon} />
       <div className="flex-1 flex flex-col min-w-0">
         <header className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/10 bg-[#0a0a0f] sticky top-0 z-10">
           <div className="flex items-center gap-4">

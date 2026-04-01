@@ -41,7 +41,7 @@ function StatusPill({ status }) {
   return <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${map[status] || 'bg-white/10 text-gray-300'}`}>{status.replace('_', ' ')}</span>;
 }
 
-function BookingFlow({ services, staff, onClose, onConfirm, loading }) {
+function BookingFlow({ services, staff, salon, onClose, onConfirm, loading }) {
   const [step, setStep] = useState(0);
   const [selected, setSelected] = useState({ serviceId: '', staffName: '', bookingType: 'slot', slot: '' });
   const [submitting, setSubmitting] = useState(false);
@@ -136,7 +136,7 @@ function BookingFlow({ services, staff, onClose, onConfirm, loading }) {
           <div className="space-y-4">
             <div className="glass rounded-2xl p-5 border border-brand-500/20 space-y-3">
               {[
-                ['Salon', "Sam's Creation"],
+                ['Salon', salon?.name || "Sam's Creation"],
                 ['Service', service?.name],
                 ['Stylist', selected.staffName],
                 ['Type', selected.bookingType === 'queue' ? 'Join live queue' : `Slot · ${selected.slot}`],
@@ -336,7 +336,7 @@ export default function CustomerApp() {
   const navigate = useNavigate();
   const { profile, signOut, loading: authLoading } = useAuth();
   
-  const { services, staff, bookings, queue, notifications, createBooking, loading, error, mode } = useCustomerAppData(profile);
+  const { services, staff, bookings, queue, notifications, salon, createBooking, loading, error, mode } = useCustomerAppData(profile);
 
   if (authLoading) {
     return (
@@ -394,7 +394,7 @@ export default function CustomerApp() {
             </div>
             <div>
               <h1 className="font-bold text-white text-sm leading-none">SalonOS</h1>
-              <p className="text-xs text-gray-400">{profile?.name || 'Customer'} · Sam's Creation</p>
+              <p className="text-xs text-gray-400">{profile?.name || 'Customer'} · {salon?.name || "Sam's Creation"}</p>
             </div>
             <div className="ml-auto flex items-center gap-2">
               <button onClick={handleSignOut} className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors" aria-label="Sign out">
@@ -409,7 +409,7 @@ export default function CustomerApp() {
             {loading ? (
               <div className="p-6 text-center text-gray-400"><RefreshCw className="w-5 h-5 animate-spin mx-auto mb-3" />Loading app data…</div>
             ) : bookingOpen ? (
-              <BookingFlow services={services} staff={staff} onClose={() => setBookingOpen(false)} onConfirm={handleConfirmBooking} loading={loading} />
+              <BookingFlow services={services} staff={staff} salon={salon} onClose={() => setBookingOpen(false)} onConfirm={handleConfirmBooking} loading={loading} />
             ) : (
               <>
                 {error && <div className="mx-4 mt-4 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-300">{error}</div>}

@@ -4,6 +4,7 @@ import {
   addToQueue,
   createBookingWithQueue,
   getQueueByTenant,
+  getSalonByTenant,
   isSupabaseConfigured,
   listBookings,
   listNotifications,
@@ -182,30 +183,52 @@ export function useCustomerAppData(profile) {
     bookings: [],
     queue: [],
     notifications: [],
+    salon: null,
     error: '',
   });
 
   const load = useCallback(async () => {
-    if (!isSupabaseConfigured || !tenantId || !userId) {
+    // Relaxed check: Only userId and isSupabaseConfigured are strictly required
+    if (!isSupabaseConfigured || !userId) {
       setState((current) => ({ ...current, loading: false }));
       return;
     }
+    
     try {
-      const [servicesRes, bookingsRes, queueRes, notificationsRes] = await Promise.all([
-        listServicesByTenant(tenantId),
-        listBookings({ tenantId, userId }),
-        getQueueByTenant(tenantId),
+      // 1. Fetch salon details to find the owner_id and identify the salon
+      let ownerId = null;
+      let salon = null;
+      
+      if (tenantId) {
+        const { data: s } = await getSalonByTenant(tenantId);
+        salon = s;
+        ownerId = salon?.owner_id || salon?.owner_user_id;
+      } else {
+        // Fallback for owners testing their own app: Find a salon they own
+        const { data: salons } = await getSalonsByOwner(userId);
+        if (salons?.length > 0) {
+          salon = salons[0];
+          ownerId = salon.owner_id || salon.owner_user_id;
+        }
+      }
+
+      // 2. Fetch everything else using the identified salon's IDs
+      const activeTenant = tenantId || salon?.tenant_id;
+      const [servicesRes, bookingsRes, queueRes, notificationsRes, staffRes] = await Promise.all([
+        activeTenant ? listServicesByTenant(activeTenant) : Promise.resolve({ data: [] }),
+        listBookings({ tenantId: activeTenant, userId }),
+        activeTenant ? getQueueByTenant(activeTenant) : Promise.resolve({ data: [] }),
         listNotifications(userId),
+        ownerId ? listStaffByOwner(ownerId) : Promise.resolve({ data: [] }),
       ]);
 
-      const staffRes = await listUsersByTenant(tenantId);
-      const staff = (staffRes.data || []).filter((item) => item.role !== 'customer').map((item) => ({
+      const staff = (staffRes.data || []).map((item) => ({
         id: item.id,
         name: item.name,
-        specialty: item.metadata?.specialty || 'Salon Expert',
-        rating: item.metadata?.rating || 4.8,
-        experience: item.metadata?.experience || '5 yrs',
-        available: item.metadata?.available ?? true,
+        specialty: item.specialty || 'Salon Expert',
+        rating: item.rating || 5.0,
+        experience: item.experience || '5 yrs',
+        available: item.available ?? true,
         avatar: item.name?.charAt(0) || 'S',
       }));
 
@@ -216,9 +239,11 @@ export function useCustomerAppData(profile) {
         bookings: bookingsRes.data || [],
         queue: queueRes.data || [],
         notifications: notificationsRes.data || [],
-        error: servicesRes.error?.message || bookingsRes.error?.message || queueRes.error?.message || notificationsRes.error?.message || '',
+        salon,
+        error: (servicesRes.error?.message || bookingsRes.error?.message || queueRes.error?.message || notificationsRes.error?.message || staffRes.error?.message) || '',
       });
     } catch (error) {
+      console.log("ERROR loading customer app data:", error);
       setState((current) => ({ ...current, loading: false, error: error.message || 'Failed to load app data.' }));
     }
   }, [tenantId, userId]);
@@ -281,7 +306,7 @@ export function useCustomerAppData(profile) {
 export function useOwnerDashboardData(profile) {
   const tenantId = profile?.tenant_id;
   const sampleState = useSampleTenantState(profile);
-  const [state, setState] = useState({ loading: isSupabaseConfigured, services: [], staff: [], customers: [], bookings: [], queue: [], error: '' });
+  const [state, setState] = useState({ loading: isSupabaseConfigured, services: [], staff: [], customers: [], bookings: [], queue: [], salon: null, error: '' });
 
   const load = useCallback(async () => {
     const ownerId = profile?.id; // Firebase UID
@@ -292,12 +317,13 @@ export function useOwnerDashboardData(profile) {
 
     try {
       // Prioritize ownerId for scoping, tenantId is secondary
-      const [servicesRes, customersRes, bookingsRes, queueRes, staffRes] = await Promise.all([
+      const [servicesRes, customersRes, bookingsRes, queueRes, staffRes, salonsRes] = await Promise.all([
         tenantId ? listServicesByTenant(tenantId) : Promise.resolve({ data: [] }),
         tenantId ? listUsersByTenant(tenantId, 'customer') : Promise.resolve({ data: [] }),
         listBookings({ tenantId, ownerId }),
         getQueueByTenant(tenantId, ownerId),
         listStaffByOwner(ownerId),
+        getSalonsByOwner(ownerId),
       ]);
 
       const staff = (staffRes.data || [])
@@ -320,7 +346,8 @@ export function useOwnerDashboardData(profile) {
         bookings: bookingsRes.data || [],
         queue: queueRes.data || [],
         staff,
-        error: (servicesRes.error?.message || customersRes.error?.message || bookingsRes.error?.message || queueRes.error?.message || staffRes.error?.message) || '',
+        salon: (salonsRes.data && salonsRes.data[0]) || null,
+        error: (servicesRes.error?.message || customersRes.error?.message || bookingsRes.error?.message || queueRes.error?.message || staffRes.error?.message || salonsRes.error?.message) || '',
       });
     } catch (error) {
       console.log("ERROR loading dashboard:", error);

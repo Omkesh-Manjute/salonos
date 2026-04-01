@@ -37,8 +37,20 @@ export async function getSalonById(id) {
   return { data, error };
 }
 
+export async function getSalonByTenant(tenantId) {
+  const { data, error } = await supabase.from('salons').select('*').eq('tenant_id', tenantId).single();
+  if (error) console.log("ERROR:", error);
+  return { data, error };
+}
+
 export async function listSalons() {
   const { data, error } = await supabase.from('salons').select('*').order('created_at', { ascending: false });
+  if (error) console.log("ERROR:", error);
+  return { data, error };
+}
+
+export async function getSalonsByOwner(ownerId) {
+  const { data, error } = await supabase.from('salons').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false });
   if (error) console.log("ERROR:", error);
   return { data, error };
 }
