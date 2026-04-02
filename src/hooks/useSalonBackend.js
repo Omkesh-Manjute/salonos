@@ -566,5 +566,6 @@ export function useAdminDashboardData() {
     ],
     totalMRR: currentSubscriptions.reduce((sum, subscription) => sum + Number(subscription.amount || 0), 0),
     mode: !isSupabaseConfigured ? 'sample' : 'live',
+    reload: load,
   };
 }
