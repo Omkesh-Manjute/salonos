@@ -2,22 +2,19 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
-  Award,
   Bell,
   Calendar,
   CheckCircle,
   ChevronLeft,
   Clock,
-  Heart,
   Home,
   LogOut,
-  MapPin,
-  Phone,
   RefreshCw,
   Scissors,
-  Star,
+  Store,
   User,
-  Zap,
+  ArrowRight,
+  Search,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCustomerAppData } from '../hooks/useSalonBackend';
@@ -41,6 +38,61 @@ function StatusPill({ status }) {
   return <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${map[status] || 'bg-white/10 text-gray-300'}`}>{status.replace('_', ' ')}</span>;
 }
 
+// ─── Enter Salon Screen ──────────────────────────────────────────────────────
+function EnterSalonScreen({ onEnter }) {
+  const [slug, setSlug] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit() {
+    if (!slug.trim()) return;
+    setLoading(true); setError('');
+    const result = await onEnter(slug.trim());
+    if (result?.error) setError('Salon not found. Check the code and try again.');
+    setLoading(false);
+  }
+
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-6">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-600 to-gold-500 flex items-center justify-center">
+        <Store className="w-7 h-7 text-white" />
+      </div>
+      <div className="text-center">
+        <h2 className="text-lg font-bold text-white mb-1">Enter Salon Code</h2>
+        <p className="text-sm text-gray-400">Enter the salon's unique code to access booking</p>
+      </div>
+      <div className="w-full space-y-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <input
+            id="salon-code-input"
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+            placeholder="e.g. samscreation1234"
+            className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500/60 font-mono"
+          />
+        </div>
+        {error && <p className="text-xs text-red-400 text-center">{error}</p>}
+        <button
+          id="salon-code-submit"
+          onClick={handleSubmit}
+          disabled={loading || !slug.trim()}
+          className="w-full bg-gradient-to-r from-brand-600 to-brand-500 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+          Find Salon
+        </button>
+      </div>
+      <p className="text-xs text-gray-500 text-center">
+        Don't have a code? Ask your salon for their QR or link.
+      </p>
+    </div>
+  );
+}
+
+// ─── Booking Flow ─────────────────────────────────────────────────────────
+
 function BookingFlow({ services, staff, salon, onClose, onConfirm, loading }) {
   const [step, setStep] = useState(0);
   const [selected, setSelected] = useState({ serviceId: '', staffName: '', bookingType: 'slot', slot: '' });
@@ -56,8 +108,7 @@ function BookingFlow({ services, staff, salon, onClose, onConfirm, loading }) {
       ? now.toISOString()
       : new Date(`${now.toDateString()} ${selected.slot || '10:00 AM'}`).toISOString();
     await onConfirm({ ...selected, bookingTime, paymentMethod: 'UPI (GPay / PhonePe)' });
-    setSubmitting(false);
-    onClose();
+    setSubmitting(false); onClose();
   }
 
   return (
@@ -71,51 +122,54 @@ function BookingFlow({ services, staff, salon, onClose, onConfirm, loading }) {
           <p className="text-xs text-gray-400">Step {step + 1} of 4</p>
         </div>
       </div>
-
       <div className="flex gap-1 px-4 pt-3 pb-1">
         {[0, 1, 2, 3].map((item) => <div key={item} className={`flex-1 h-1 rounded-full ${item <= step ? 'bg-brand-500' : 'bg-white/10'}`} />)}
       </div>
-
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {step === 0 && services.map((item) => (
-          <button key={item.id} onClick={() => { setSelected((current) => ({ ...current, serviceId: item.id })); setStep(1); }} className={`w-full text-left glass rounded-2xl p-4 border transition-all ${selected.serviceId === item.id ? 'border-brand-500/60' : 'border-white/10 hover:border-brand-500/30'}`}>
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="font-semibold text-white">{item.name}</h3>
-              <span className="text-brand-300 font-semibold">₹{item.price}</span>
-            </div>
-            <p className="text-sm text-gray-400">{item.description || item.category}</p>
-            <p className="text-xs text-gray-500 mt-2">{item.duration_minutes} mins · {item.category}</p>
-          </button>
-        ))}
-
-        {step === 1 && staff.map((item) => (
-          <button key={item.id} onClick={() => { setSelected((current) => ({ ...current, staffName: item.name })); setStep(2); }} className={`w-full text-left glass rounded-2xl p-4 border transition-all ${selected.staffName === item.name ? 'border-brand-500/60' : 'border-white/10 hover:border-brand-500/30'}`}>
-            <div className="flex items-center gap-3">
-              {item.avatar_url ? (
-                <img src={item.avatar_url} alt={item.name} className="w-11 h-11 rounded-2xl object-cover" />
-              ) : (
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-white font-bold">{item.avatar || item.name.charAt(0)}</div>
-              )}
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-white">{item.name}</h3>
-                  <span className="text-xs text-emerald-400">{item.available ? 'Available' : 'Busy'}</span>
-                </div>
-                <p className="text-sm text-gray-400">{item.specialty}</p>
-                <p className="text-xs text-gray-500 mt-1">⭐ {item.rating} · {item.experience}</p>
+        {step === 0 && (
+          services.length > 0 ? services.map((item) => (
+            <button key={item.id} onClick={() => { setSelected((c) => ({ ...c, serviceId: item.id })); setStep(1); }} className={`w-full text-left glass rounded-2xl p-4 border transition-all ${selected.serviceId === item.id ? 'border-brand-500/60' : 'border-white/10 hover:border-brand-500/30'}`}>
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="font-semibold text-white">{item.name}</h3>
+                <span className="text-brand-300 font-semibold">₹{item.price}</span>
               </div>
-            </div>
-          </button>
-        ))}
+              <p className="text-sm text-gray-400">{item.description || item.category || 'Salon Service'}</p>
+              <p className="text-xs text-gray-500 mt-2">{item.duration_minutes} mins</p>
+            </button>
+          )) : (
+            <div className="text-center py-8 text-gray-500 text-sm">No services available for this salon</div>
+          )
+        )}
+
+        {step === 1 && (
+          staff.length > 0 ? staff.map((item) => (
+            <button key={item.id} onClick={() => { setSelected((c) => ({ ...c, staffName: item.name })); setStep(2); }} className={`w-full text-left glass rounded-2xl p-4 border transition-all ${selected.staffName === item.name ? 'border-brand-500/60' : 'border-white/10 hover:border-brand-500/30'}`}>
+              <div className="flex items-center gap-3">
+                {item.avatar_url ? (
+                  <img src={item.avatar_url} alt={item.name} className="w-11 h-11 rounded-2xl object-cover" />
+                ) : (
+                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-white font-bold">{item.avatar || item.name.charAt(0)}</div>
+                )}
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-white">{item.name}</h3>
+                    <span className="text-xs text-emerald-400">{item.available ? 'Available' : 'Busy'}</span>
+                  </div>
+                  <p className="text-sm text-gray-400">{item.specialty}</p>
+                  <p className="text-xs text-gray-500 mt-1">⭐ {item.rating} · {item.experience}</p>
+                </div>
+              </div>
+            </button>
+          )) : (
+            <div className="text-center py-8 text-gray-500 text-sm">No staff available</div>
+          )
+        )}
 
         {step === 2 && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              {[
-                { id: 'slot', title: 'Book Slot', desc: 'Arrive at an exact time' },
-                { id: 'queue', title: 'Join Queue', desc: 'Get live wait updates' },
-              ].map((item) => (
-                <button key={item.id} onClick={() => setSelected((current) => ({ ...current, bookingType: item.id }))} className={`glass rounded-2xl p-4 border text-left ${selected.bookingType === item.id ? 'border-brand-500/60' : 'border-white/10'}`}>
+              {[{ id: 'slot', title: 'Book Slot', desc: 'Arrive at an exact time' }, { id: 'queue', title: 'Join Queue', desc: 'Get live wait updates' }].map((item) => (
+                <button key={item.id} onClick={() => setSelected((c) => ({ ...c, bookingType: item.id }))} className={`glass rounded-2xl p-4 border text-left ${selected.bookingType === item.id ? 'border-brand-500/60' : 'border-white/10'}`}>
                   <div className="text-white font-medium">{item.title}</div>
                   <div className="text-xs text-gray-400 mt-1">{item.desc}</div>
                 </button>
@@ -124,35 +178,25 @@ function BookingFlow({ services, staff, salon, onClose, onConfirm, loading }) {
             {selected.bookingType === 'slot' && (
               <div className="grid grid-cols-2 gap-3">
                 {slots.map((slot) => (
-                  <button key={slot} onClick={() => setSelected((current) => ({ ...current, slot }))} className={`rounded-xl px-3 py-3 text-sm border ${selected.slot === slot ? 'border-brand-500 bg-brand-500/10 text-white' : 'border-white/10 text-gray-300 bg-white/5'}`}>
-                    {slot}
-                  </button>
+                  <button key={slot} onClick={() => setSelected((c) => ({ ...c, slot }))} className={`rounded-xl px-3 py-3 text-sm border ${selected.slot === slot ? 'border-brand-500 bg-brand-500/10 text-white' : 'border-white/10 text-gray-300 bg-white/5'}`}>{slot}</button>
                 ))}
               </div>
             )}
-            <button onClick={() => setStep(3)} disabled={selected.bookingType === 'slot' && !selected.slot} className="w-full bg-gradient-to-r from-brand-600 to-brand-500 text-white py-3.5 rounded-xl font-semibold disabled:opacity-50">
-              Continue
-            </button>
+            <button onClick={() => setStep(3)} disabled={selected.bookingType === 'slot' && !selected.slot} className="w-full bg-gradient-to-r from-brand-600 to-brand-500 text-white py-3.5 rounded-xl font-semibold disabled:opacity-50">Continue</button>
           </div>
         )}
 
         {step === 3 && (
           <div className="space-y-4">
             <div className="glass rounded-2xl p-5 border border-brand-500/20 space-y-3">
-              {[
-                ['Salon', salon?.name || "Sam's Creation"],
-                ['Service', service?.name],
-                ['Stylist', selected.staffName],
-                ['Type', selected.bookingType === 'queue' ? 'Join live queue' : `Slot · ${selected.slot}`],
-                ['Price', `₹${service?.price || 0}`],
-              ].map(([label, value]) => (
+              {[['Salon', salon?.name || 'Salon'], ['Service', service?.name], ['Stylist', selected.staffName], ['Type', selected.bookingType === 'queue' ? 'Join live queue' : `Slot · ${selected.slot}`], ['Price', `₹${service?.price || 0}`]].map(([label, value]) => (
                 <div key={label} className="flex justify-between text-sm">
                   <span className="text-gray-400">{label}</span>
                   <span className="text-white font-medium">{value}</span>
                 </div>
               ))}
             </div>
-            <button onClick={handleConfirm} disabled={submitting || loading} className="w-full bg-gradient-to-r from-brand-600 to-brand-500 text-white py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2 glow disabled:opacity-60">
+            <button onClick={handleConfirm} disabled={submitting || loading} className="w-full bg-gradient-to-r from-brand-600 to-brand-500 text-white py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2 disabled:opacity-60">
               {submitting || loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
               Confirm Booking
             </button>
@@ -163,7 +207,9 @@ function BookingFlow({ services, staff, salon, onClose, onConfirm, loading }) {
   );
 }
 
-function HomeTab({ profile, bookings, queue, services, staff, mode, openBooking }) {
+// ─── Tabs ─────────────────────────────────────────────────────────────────
+
+function HomeTab({ profile, bookings, queue, services, staff, salon, openBooking }) {
   const upcoming = bookings.find((item) => item.status === 'confirmed');
   const queueEntry = queue.find((item) => item.user_id === profile?.id) || queue.find((item) => item.customer_name === profile?.name);
 
@@ -175,7 +221,7 @@ function HomeTab({ profile, bookings, queue, services, staff, mode, openBooking 
             <p className="text-xs text-gray-500">Welcome back</p>
             <h2 className="text-lg font-semibold text-white">{profile?.name || 'Customer'}</h2>
           </div>
-          <span className={`text-[11px] px-2.5 py-1 rounded-full ${mode === 'live' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gold-500/20 text-gold-300'}`}>{mode === 'live' ? 'Live backend' : 'Sample backend'}</span>
+          {salon && <span className="text-[11px] bg-brand-500/20 text-brand-300 px-2.5 py-1 rounded-full">{salon.name}</span>}
         </div>
         {upcoming ? (
           <div className="rounded-xl bg-brand-500/10 border border-brand-500/20 p-4">
@@ -183,7 +229,7 @@ function HomeTab({ profile, bookings, queue, services, staff, mode, openBooking 
             <div className="text-xs text-gray-400 mt-1">{new Date(upcoming.booking_time).toLocaleString()} · {upcoming.staff_name}</div>
           </div>
         ) : (
-          <div className="rounded-xl bg-white/5 border border-white/10 p-4 text-sm text-gray-400">No upcoming booking. Book your next appointment in a few taps.</div>
+          <div className="rounded-xl bg-white/5 border border-white/10 p-4 text-sm text-gray-400">No upcoming booking. Tap "Book" to schedule.</div>
         )}
       </div>
 
@@ -200,46 +246,46 @@ function HomeTab({ profile, bookings, queue, services, staff, mode, openBooking 
         </div>
       </div>
 
-      <div className="glass rounded-2xl p-4 border border-white/10">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-white">Popular services</h3>
-          <span className="text-xs text-gray-500">Top picks</span>
-        </div>
-        <div className="space-y-3">
-          {services.slice(0, 3).map((item) => (
-            <div key={item.id} className="flex items-center justify-between">
-              <div>
-                <div className="text-sm text-white font-medium">{item.name}</div>
-                <div className="text-xs text-gray-400">{item.duration_minutes} mins · {item.category}</div>
-              </div>
-              <div className="text-right">
+      {services.length > 0 && (
+        <div className="glass rounded-2xl p-4 border border-white/10">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-white">Popular services</h3>
+          </div>
+          <div className="space-y-3">
+            {services.slice(0, 4).map((item) => (
+              <div key={item.id} className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-white font-medium">{item.name}</div>
+                  <div className="text-xs text-gray-400">{item.duration_minutes} mins · {item.category}</div>
+                </div>
                 <div className="text-sm text-brand-300 font-semibold">₹{item.price}</div>
-                {item.is_popular && <div className="text-[11px] text-gold-300">Popular</div>}
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="glass rounded-2xl p-4 border border-white/10">
-        <div className="text-sm font-semibold text-white mb-3">Top stylists</div>
-        <div className="space-y-3">
-          {staff.slice(0, 2).map((item) => (
-            <div key={item.id} className="flex items-center gap-3">
-              {item.avatar_url ? (
-                <img src={item.avatar_url} alt={item.name} className="w-10 h-10 rounded-2xl object-cover" />
-              ) : (
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-white font-bold">{item.avatar || item.name.charAt(0)}</div>
-              )}
-              <div className="flex-1">
-                <div className="text-sm text-white font-medium">{item.name}</div>
-                <div className="text-xs text-gray-400">{item.specialty}</div>
+      {staff.length > 0 && (
+        <div className="glass rounded-2xl p-4 border border-white/10">
+          <div className="text-sm font-semibold text-white mb-3">Our stylists</div>
+          <div className="space-y-3">
+            {staff.slice(0, 3).map((item) => (
+              <div key={item.id} className="flex items-center gap-3">
+                {item.avatar_url ? (
+                  <img src={item.avatar_url} alt={item.name} className="w-10 h-10 rounded-2xl object-cover" />
+                ) : (
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-white font-bold">{item.avatar || item.name.charAt(0)}</div>
+                )}
+                <div className="flex-1">
+                  <div className="text-sm text-white font-medium">{item.name}</div>
+                  <div className="text-xs text-gray-400">{item.specialty}</div>
+                </div>
+                <div className="text-xs text-gold-300">⭐ {item.rating}</div>
               </div>
-              <div className="text-xs text-gold-300">⭐ {item.rating}</div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -273,6 +319,7 @@ function QueueTab({ profile, queue }) {
               <StatusPill status={item.status} />
             </div>
           ))}
+          {queue.length === 0 && <p className="text-sm text-gray-500 text-center py-4">Queue is empty</p>}
         </div>
       </div>
     </div>
@@ -292,21 +339,11 @@ function ProfileTab({ profile, bookings, notifications, staff }) {
           </div>
         </div>
         <div className="grid grid-cols-3 gap-3 text-center">
-          <div className="rounded-xl bg-white/5 p-3">
-            <div className="text-lg font-bold text-white">{completed.length}</div>
-            <div className="text-[11px] text-gray-500">Visits</div>
-          </div>
-          <div className="rounded-xl bg-white/5 p-3">
-            <div className="text-lg font-bold text-white">{profile?.loyalty_points || 120}</div>
-            <div className="text-[11px] text-gray-500">Points</div>
-          </div>
-          <div className="rounded-xl bg-white/5 p-3">
-            <div className="text-lg font-bold text-white">{staff.slice(0, 2).length}</div>
-            <div className="text-[11px] text-gray-500">Favorites</div>
-          </div>
+          <div className="rounded-xl bg-white/5 p-3"><div className="text-lg font-bold text-white">{completed.length}</div><div className="text-[11px] text-gray-500">Visits</div></div>
+          <div className="rounded-xl bg-white/5 p-3"><div className="text-lg font-bold text-white">{profile?.loyalty_points || 0}</div><div className="text-[11px] text-gray-500">Points</div></div>
+          <div className="rounded-xl bg-white/5 p-3"><div className="text-lg font-bold text-white">{bookings.length}</div><div className="text-[11px] text-gray-500">Bookings</div></div>
         </div>
       </div>
-
       <div className="glass rounded-2xl p-4 border border-white/10">
         <div className="text-sm font-semibold text-white mb-3">Recent bookings</div>
         <div className="space-y-3">
@@ -319,23 +356,14 @@ function ProfileTab({ profile, bookings, notifications, staff }) {
               <StatusPill status={item.status} />
             </div>
           ))}
-        </div>
-      </div>
-
-      <div className="glass rounded-2xl p-4 border border-white/10">
-        <div className="text-sm font-semibold text-white mb-3">Notifications</div>
-        <div className="space-y-3">
-          {notifications.slice(0, 3).map((item) => (
-            <div key={item.id} className="rounded-xl bg-white/5 p-3">
-              <div className="text-sm text-white font-medium">{item.title}</div>
-              <div className="text-xs text-gray-400 mt-1">{item.message}</div>
-            </div>
-          ))}
+          {bookings.length === 0 && <p className="text-sm text-gray-500">No bookings yet</p>}
         </div>
       </div>
     </div>
   );
 }
+
+// ─── Main Component ───────────────────────────────────────────────────────
 
 export default function CustomerApp() {
   const [activeTab, setActiveTab] = useState('home');
@@ -343,8 +371,8 @@ export default function CustomerApp() {
   const [booked, setBooked] = useState(false);
   const navigate = useNavigate();
   const { profile, signOut, loading: authLoading } = useAuth();
-  
-  const { services, staff, bookings, queue, notifications, salon, createBooking, loading, error, mode } = useCustomerAppData(profile);
+
+  const { services, staff, bookings, queue, notifications, salon, createBooking, loading, error, mode, needsSalonEntry, enterSalonBySlug } = useCustomerAppData(profile);
 
   if (authLoading) {
     return (
@@ -368,13 +396,9 @@ export default function CustomerApp() {
     );
   }
 
-  const bookedMessage = useMemo(() => booked ? 'Booking saved to the backend successfully.' : '', [booked]);
+  const bookedMessage = useMemo(() => booked ? 'Booking saved successfully!' : '', [booked]);
 
-  async function handleSignOut() {
-    await signOut();
-    navigate('/login/customer', { replace: true });
-  }
-
+  async function handleSignOut() { await signOut(); navigate('/login/customer', { replace: true }); }
   async function handleConfirmBooking(payload) {
     const result = await createBooking(payload);
     if (!result?.error) setBooked(true);
@@ -390,47 +414,53 @@ export default function CustomerApp() {
         </div>
 
         <div className="glass rounded-[2.5rem] overflow-hidden border border-white/10" style={{ height: '780px', display: 'flex', flexDirection: 'column' }}>
+          {/* Status bar */}
           <div className="flex items-center justify-between px-6 py-2 bg-black/20 shrink-0">
             <span className="text-xs text-gray-300">9:41 AM</span>
             <div className="w-20 h-5 bg-black rounded-full" />
             <div className="w-4 h-2 border border-gray-300 rounded-sm"><div className="w-3 h-1.5 bg-gray-300 rounded-sm m-px" /></div>
           </div>
 
+          {/* App header */}
           <div className="flex items-center gap-3 px-5 py-3 border-b border-white/10 shrink-0">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-gold-400 flex items-center justify-center">
               <Scissors className="w-4 h-4 text-white" />
             </div>
             <div>
               <h1 className="font-bold text-white text-sm leading-none">SalonOS</h1>
-              <p className="text-xs text-gray-400">{profile?.name || 'Customer'} · {salon?.name || "Sam's Creation"}</p>
+              <p className="text-xs text-gray-400">{profile?.name || 'Customer'}{salon ? ` · ${salon.name}` : ''}</p>
             </div>
             <div className="ml-auto flex items-center gap-2">
-              <button onClick={handleSignOut} className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors" aria-label="Sign out">
+              <button onClick={handleSignOut} className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white" aria-label="Sign out">
                 <LogOut className="w-4 h-4" />
               </button>
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs text-emerald-400">Live</span>
+              <span className="text-xs text-emerald-400">{mode === 'live' ? 'Live' : 'Demo'}</span>
             </div>
           </div>
 
+          {/* Content */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="p-6 text-center text-gray-400"><RefreshCw className="w-5 h-5 animate-spin mx-auto mb-3" />Loading app data…</div>
+            ) : needsSalonEntry ? (
+              <EnterSalonScreen onEnter={enterSalonBySlug} />
             ) : bookingOpen ? (
               <BookingFlow services={services} staff={staff} salon={salon} onClose={() => setBookingOpen(false)} onConfirm={handleConfirmBooking} loading={loading} />
             ) : (
               <>
                 {error && <div className="mx-4 mt-4 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-300">{error}</div>}
                 {bookedMessage && <div className="mx-4 mt-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 text-xs text-emerald-300">{bookedMessage}</div>}
-                {activeTab === 'home' && <HomeTab profile={profile} bookings={bookings} queue={queue} services={services} staff={staff} mode={mode} openBooking={() => setBookingOpen(true)} />}
-                {activeTab === 'book' && <HomeTab profile={profile} bookings={bookings} queue={queue} services={services} staff={staff} mode={mode} openBooking={() => setBookingOpen(true)} />}
+                {activeTab === 'home' && <HomeTab profile={profile} bookings={bookings} queue={queue} services={services} staff={staff} salon={salon} openBooking={() => setBookingOpen(true)} />}
+                {activeTab === 'book' && <HomeTab profile={profile} bookings={bookings} queue={queue} services={services} staff={staff} salon={salon} openBooking={() => setBookingOpen(true)} />}
                 {activeTab === 'queue' && <QueueTab profile={profile} queue={queue} />}
                 {activeTab === 'profile' && <ProfileTab profile={profile} bookings={bookings} notifications={notifications} staff={staff} />}
               </>
             )}
           </div>
 
-          {!bookingOpen && (
+          {/* Bottom nav */}
+          {!bookingOpen && !needsSalonEntry && (
             <div className="border-t border-white/10 bg-black/20 shrink-0">
               <div className="flex">
                 {TABS.map((tab) => (

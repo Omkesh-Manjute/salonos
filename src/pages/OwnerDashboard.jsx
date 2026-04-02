@@ -5,33 +5,41 @@ import {
   Calendar,
   ChevronLeft,
   Clock,
+  Copy,
+  Check,
   DollarSign,
   Filter,
   LogOut,
   Menu,
-  MessageSquare,
-  Phone,
   Plus,
+  QrCode,
   RefreshCw,
   Scissors,
   Search,
   Settings,
   SkipForward,
+  Sparkles,
   Star,
+  Store,
   TrendingUp,
+  Trash2,
   User,
   Users,
+  X,
 } from 'lucide-react';
 import { Area, AreaChart, Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import { formatCurrency, useOwnerDashboardData } from '../hooks/useSalonBackend';
+import SetupShop from './SetupShop';
 
 const NAV_ITEMS = [
   { id: 'overview', label: 'Overview', icon: TrendingUp },
   { id: 'queue', label: 'Queue', icon: Clock },
   { id: 'staff', label: 'Staff', icon: Users },
+  { id: 'services', label: 'Services', icon: Scissors },
   { id: 'crm', label: 'CRM', icon: User },
   { id: 'reports', label: 'Reports', icon: Calendar },
+  { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
 function StatusBadge({ status }) {
@@ -56,10 +64,16 @@ function Sidebar({ active, setActive, open, setOpen, profile, salon }) {
             <Scissors className="w-4 h-4 text-white" />
           </div>
           <div>
-            <div className="font-bold text-white text-sm">{salon?.name || "Sam's Creation"}</div>
-            <div className="text-xs text-brand-400">{salon ? 'Verified Salon' : 'Setup Required'}</div>
+            <div className="font-bold text-white text-sm">{salon?.name || "My Salon"}</div>
+            <div className="text-xs text-brand-400">{salon?.is_setup ? 'Live' : 'Setup Required'}</div>
           </div>
         </div>
+        {salon?.slug && (
+          <div className="px-4 py-2 border-b border-white/5">
+            <div className="text-[10px] text-gray-500 mb-1">Salon Code</div>
+            <div className="text-xs text-brand-400 font-mono">@{salon.slug}</div>
+          </div>
+        )}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {NAV_ITEMS.map((item) => (
             <button key={item.id} onClick={() => { setActive(item.id); setOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${active === item.id ? 'bg-brand-600/20 text-brand-300 border border-brand-500/30' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
@@ -75,7 +89,6 @@ function Sidebar({ active, setActive, open, setOpen, profile, salon }) {
               <div className="text-sm font-medium text-white truncate">{profile?.name || 'Salon Owner'}</div>
               <div className="text-xs text-gray-400">Salon Owner</div>
             </div>
-            <Settings className="w-4 h-4 text-gray-500 shrink-0" />
           </div>
         </div>
       </aside>
@@ -152,6 +165,7 @@ function OverviewPage({ profile, metrics, revenueSeries, queue, mode }) {
               <StatusBadge status={item.status} />
             </div>
           ))}
+          {queue.length === 0 && <p className="text-sm text-gray-500 text-center py-4">Queue is empty right now</p>}
         </div>
       </div>
     </div>
@@ -165,10 +179,8 @@ function QueuePage({ queue, services, onCallNext, onAddWalkIn }) {
 
   async function handleAddWalkIn() {
     if (!name.trim()) return;
-    const { error } = await onAddWalkIn({ customerName: name, serviceName });
-    if (error) console.log("ERROR adding walk-in:", error);
-    setName('');
-    setShowAdd(false);
+    await onAddWalkIn({ customerName: name, serviceName });
+    setName(''); setShowAdd(false);
   }
 
   return (
@@ -180,14 +192,15 @@ function QueuePage({ queue, services, onCallNext, onAddWalkIn }) {
         </div>
         <div className="flex items-center gap-3">
           <button onClick={onCallNext} className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2"><SkipForward className="w-4 h-4" /> Call Next</button>
-          <button onClick={() => setShowAdd((current) => !current)} className="glass border border-white/10 text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2"><Plus className="w-4 h-4" /> Add Walk-in</button>
+          <button onClick={() => setShowAdd((c) => !c)} className="glass border border-white/10 text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2"><Plus className="w-4 h-4" /> Add Walk-in</button>
         </div>
       </div>
       {showAdd && (
         <div className="glass rounded-2xl p-4 border border-white/10 flex flex-col md:flex-row gap-3">
-          <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Customer name" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500/50" />
-          <select value={serviceName} onChange={(event) => setServiceName(event.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Customer name" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500/50" />
+          <select value={serviceName} onChange={(e) => setServiceName(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none">
             {services.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}
+            {services.length === 0 && <option value="General">General</option>}
           </select>
           <button onClick={handleAddWalkIn} className="bg-gradient-to-r from-brand-600 to-brand-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold">Save</button>
         </div>
@@ -209,6 +222,7 @@ function QueuePage({ queue, services, onCallNext, onAddWalkIn }) {
               <StatusBadge status={item.status} />
             </div>
           ))}
+          {queue.length === 0 && <div className="py-12 text-center text-gray-500 text-sm">Queue is empty</div>}
         </div>
       </div>
     </div>
@@ -224,41 +238,22 @@ function StaffPage({ staff, onAdd, onUpdate, onDelete }) {
 
   function handleEdit(member) {
     setEditing(member.id);
-    setFormData({
-      name: member.name,
-      specialty: member.specialty,
-      experience: member.experience || '',
-      avatar_url: member.avatar_url || '',
-    });
-    setError('');
-    setShowForm(true);
+    setFormData({ name: member.name, specialty: member.specialty, experience: member.experience || '', avatar_url: member.avatar_url || '' });
+    setError(''); setShowForm(true);
   }
 
-  async function handleAddMember() {
+  async function handleSave() {
     if (!formData.name.trim()) return;
-    setSaving(true);
-    setError('');
+    setSaving(true); setError('');
     try {
-      let result;
-      if (editing) {
-        result = await onUpdate(editing, { name: formData.name, specialty: formData.specialty, experience: formData.experience, avatar_url: formData.avatar_url });
-      } else {
-        result = await onAdd(formData);
-      }
-      
-      if (result?.error) {
-        console.log("ERROR in handleAddMember:", result.error);
-        throw new Error(result.error.message || 'Failed to save staff member.');
-      }
-
+      const result = editing
+        ? await onUpdate(editing, formData)
+        : await onAdd(formData);
+      if (result?.error) throw new Error(result.error.message || 'Failed to save.');
       setFormData({ name: '', specialty: '', experience: '', avatar_url: '' });
-      setEditing(null);
-      setShowForm(false);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+      setEditing(null); setShowForm(false);
+    } catch (err) { setError(err.message); }
+    finally { setSaving(false); }
   }
 
   return (
@@ -266,83 +261,30 @@ function StaffPage({ staff, onAdd, onUpdate, onDelete }) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Staff Management</h1>
-          <p className="text-gray-400 text-sm">Manage your team, specialties, and photos</p>
+          <p className="text-gray-400 text-sm">Manage your team — scoped to your salon</p>
         </div>
-        <button
-          onClick={() => { setShowForm(true); setEditing(null); setFormData({ name: '', specialty: '', experience: '', avatar_url: '' }); }}
-          className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg glow"
-        >
+        <button onClick={() => { setShowForm(true); setEditing(null); setFormData({ name: '', specialty: '', experience: '', avatar_url: '' }); }} className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg">
           <Plus className="w-4 h-4" /> Add Team Member
         </button>
       </div>
 
       {showForm && (
-        <div className="glass rounded-2xl p-6 border border-white/10 space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
-          <h3 className="text-white font-semibold flex items-center gap-2">
-            {editing ? <Settings className="w-4 h-4 text-brand-400" /> : <User className="w-4 h-4 text-brand-400" />}
-            {editing ? 'Edit Team Member' : 'New Team Member'}
-          </h3>
+        <div className="glass rounded-2xl p-6 border border-white/10 space-y-4">
+          <h3 className="text-white font-semibold">{editing ? 'Edit' : 'New'} Team Member</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1.5 ml-1">Full Name</label>
-              <input
-                value={formData.name}
-                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g. Rahul Sharma"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50 transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1.5 ml-1">Specialty</label>
-              <input
-                value={formData.specialty}
-                onChange={e => setFormData({ ...formData, specialty: e.target.value })}
-                placeholder="e.g. Master Stylist"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50 transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1.5 ml-1">Experience</label>
-              <input
-                value={formData.experience}
-                onChange={e => setFormData({ ...formData, experience: e.target.value })}
-                placeholder="e.g. 5 Years"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50 transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1.5 ml-1">Photo URL (Optional)</label>
-              <input
-                value={formData.avatar_url}
-                onChange={e => setFormData({ ...formData, avatar_url: e.target.value })}
-                placeholder="https://..."
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50 transition-all"
-              />
-            </div>
+            {[['name', 'Full Name', 'e.g. Rahul Sharma'], ['specialty', 'Specialty', 'e.g. Master Stylist'], ['experience', 'Experience', 'e.g. 5 Years'], ['avatar_url', 'Photo URL', 'https://…']].map(([field, label, placeholder]) => (
+              <div key={field}>
+                <label className="block text-xs text-gray-500 mb-1.5 ml-1">{label}</label>
+                <input value={formData[field]} onChange={(e) => setFormData({ ...formData, [field]: e.target.value })} placeholder={placeholder} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50" />
+              </div>
+            ))}
           </div>
-          
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl flex items-center gap-2">
-              <div className="w-1 h-1 rounded-full bg-red-400" />
-              {error}
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              onClick={() => setShowForm(false)}
-              disabled={saving}
-              className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleAddMember}
-              disabled={saving}
-              className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2 rounded-xl text-sm font-semibold transition-all shadow-lg flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
-              {editing ? 'Update Member' : 'Create Member'}
+          {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl">{error}</div>}
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 disabled:opacity-70">
+              {saving && <RefreshCw className="w-4 h-4 animate-spin" />}
+              {editing ? 'Update' : 'Add Member'}
             </button>
           </div>
         </div>
@@ -350,43 +292,31 @@ function StaffPage({ staff, onAdd, onUpdate, onDelete }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {staff.map((member) => (
-          <div key={member.id} className="glass rounded-2xl p-5 border border-white/5 group hover:border-brand-500/30 transition-all duration-300">
+          <div key={member.id} className="glass rounded-2xl p-5 border border-white/5 group hover:border-brand-500/30 transition-all">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
                 {member.avatar_url ? (
                   <img src={member.avatar_url} alt={member.name} className="w-12 h-12 rounded-2xl object-cover ring-1 ring-white/10" />
                 ) : (
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-white font-bold text-lg shadow-inner">
-                    {member.avatar}
-                  </div>
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-white font-bold text-lg">{member.avatar}</div>
                 )}
                 <div>
-                  <div className="text-white font-semibold leading-tight">{member.name}</div>
-                  <div className="text-[10px] text-gray-500 mt-0.5 tracking-wide uppercase font-medium">{member.specialty}</div>
+                  <div className="text-white font-semibold">{member.name}</div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wide">{member.specialty}</div>
                 </div>
               </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => handleEdit(member)} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-brand-400 transition-colors">
-                  <Settings className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={() => { if (confirm(`Remove ${member.name}?`)) onDelete(member.id); }} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-red-400 transition-colors">
-                  <LogOut className="w-3.5 h-3.5 rotate-90" />
-                </button>
+                <button onClick={() => handleEdit(member)} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-brand-400"><Settings className="w-3.5 h-3.5" /></button>
+                <button onClick={() => { if (confirm(`Remove ${member.name}?`)) onDelete(member.id); }} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             </div>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between items-center bg-white/3 p-2 rounded-lg">
-                <span className="text-gray-400">Current Status</span>
+                <span className="text-gray-400">Status</span>
                 <StatusBadge status={member.status || 'available'} />
               </div>
-              <div className="flex justify-between px-2 pt-1">
-                <span className="text-gray-500">Exp.</span>
-                <span className="text-gray-300">{member.experience || '3+ Years'}</span>
-              </div>
-              <div className="flex justify-between px-2">
-                <span className="text-gray-500">Rating</span>
-                <span className="text-gold-400 font-medium">⭐ {member.rating}</span>
-              </div>
+              <div className="flex justify-between px-2"><span className="text-gray-500">Exp.</span><span className="text-gray-300">{member.experience || '—'}</span></div>
+              <div className="flex justify-between px-2"><span className="text-gray-500">Rating</span><span className="text-gold-400">⭐ {member.rating}</span></div>
             </div>
           </div>
         ))}
@@ -401,17 +331,177 @@ function StaffPage({ staff, onAdd, onUpdate, onDelete }) {
   );
 }
 
+function ServicesPage({ services, onAdd, onEdit, onDelete }) {
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({ name: '', price: '', category: 'General', duration_minutes: 30 });
+
+  const DEFAULT_NAMES = ['Haircut', 'Shaving', 'Hair Color', 'Facial', 'Massage', 'Beard Trim'];
+
+  async function handleSave() {
+    if (!form.name || !form.price) return;
+    setSaving(true);
+    try {
+      if (editingId) await onEdit(editingId, { name: form.name, price: Number(form.price), category: form.category, duration_minutes: Number(form.duration_minutes) });
+      else await onAdd({ name: form.name, price: Number(form.price), category: form.category, duration_minutes: Number(form.duration_minutes) });
+      setShowForm(false); setEditingId(null); setForm({ name: '', price: '', category: 'General', duration_minutes: 30 });
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Services & Pricing</h1>
+          <p className="text-gray-400 text-sm">Manage what you offer and set prices</p>
+        </div>
+        <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ name: '', price: '', category: 'General', duration_minutes: 30 }); }} className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2">
+          <Plus className="w-4 h-4" /> Add Service
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="glass rounded-2xl p-6 border border-white/10 space-y-4">
+          <h3 className="text-white font-semibold">{editingId ? 'Edit' : 'New'} Service</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1.5">Service Name</label>
+              <input list="default-services" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Haircut" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50" />
+              <datalist id="default-services">{DEFAULT_NAMES.map((n) => <option key={n} value={n} />)}</datalist>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1.5">Price (₹)</label>
+              <input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="e.g. 200" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1.5">Category</label>
+              <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="General" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1.5">Duration (mins)</label>
+              <input type="number" value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50" />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 disabled:opacity-70">
+              {saving && <RefreshCw className="w-4 h-4 animate-spin" />}
+              {editingId ? 'Update' : 'Add Service'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="glass rounded-2xl border border-white/5 overflow-hidden">
+        <div className="hidden lg:grid grid-cols-[1fr_100px_120px_80px_60px] gap-3 px-5 py-3 border-b border-white/10 text-xs text-gray-500 font-medium uppercase tracking-wider">
+          <span>Service</span><span>Category</span><span>Duration</span><span>Price</span><span></span>
+        </div>
+        <div className="divide-y divide-white/5">
+          {services.map((svc) => (
+            <div key={svc.id} className="grid grid-cols-1 lg:grid-cols-[1fr_100px_120px_80px_60px] gap-3 items-center px-5 py-4 hover:bg-white/3 transition-colors group">
+              <div className="font-medium text-white text-sm">{svc.name}</div>
+              <span className="text-sm text-gray-400">{svc.category || 'General'}</span>
+              <span className="text-sm text-gray-400">{svc.duration_minutes} mins</span>
+              <span className="text-sm text-brand-300 font-semibold">₹{svc.price}</span>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => { setEditingId(svc.id); setForm({ name: svc.name, price: svc.price, category: svc.category || 'General', duration_minutes: svc.duration_minutes || 30 }); setShowForm(true); }} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-brand-400"><Settings className="w-3.5 h-3.5" /></button>
+                <button onClick={() => { if (confirm(`Delete "${svc.name}"?`)) onDelete(svc.id); }} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+            </div>
+          ))}
+          {services.length === 0 && (
+            <div className="py-12 text-center">
+              <Scissors className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+              <p className="text-gray-400 text-sm">No services yet. Add your first service above.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsPage({ salon, onSave }) {
+  const [name, setName] = useState(salon?.name || '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const salonUrl = salon?.slug ? `${window.location.origin}/salon/${salon.slug}` : '';
+  const qrSrc = salon?.slug ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(salonUrl)}&bgcolor=0a0a0f&color=a855f7&margin=12` : '';
+
+  async function handleSave() {
+    setSaving(true);
+    await onSave({ name });
+    setSaving(false); setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(salonUrl).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h1 className="text-2xl font-bold text-white">Settings</h1>
+        <p className="text-gray-400 text-sm">Manage your salon details and share with customers</p>
+      </div>
+
+      {/* QR + Share */}
+      {salon?.slug && (
+        <div className="glass rounded-2xl p-6 border border-white/10">
+          <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><QrCode className="w-4 h-4 text-brand-400" /> Share Your Salon</h3>
+          <div className="flex flex-col sm:flex-row gap-6 items-start">
+            <div className="bg-white/5 rounded-2xl p-3 shrink-0">
+              <img src={qrSrc} alt="Salon QR Code" className="w-32 h-32 rounded-xl" />
+            </div>
+            <div className="flex-1 space-y-3">
+              <div>
+                <div className="text-xs text-gray-500 mb-1">Salon Code</div>
+                <div className="text-brand-300 font-mono font-semibold">@{salon.slug}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 mb-1.5">Shareable Link</div>
+                <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
+                  <span className="text-xs text-white font-mono flex-1 truncate">{salonUrl}</span>
+                  <button onClick={copyLink} className="p-1 rounded-md hover:bg-white/10 text-gray-400 hover:text-white shrink-0">
+                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">Share this link or QR code with customers so they can book appointments at your salon.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Salon name */}
+      <div className="glass rounded-2xl p-6 border border-white/10">
+        <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Store className="w-4 h-4 text-brand-400" /> Salon Details</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1.5">Salon Name</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50" />
+          </div>
+          <button onClick={handleSave} disabled={saving} className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 disabled:opacity-70">
+            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4 text-emerald-300" /> : null}
+            {saved ? 'Saved!' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CRMPage({ customers }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Customer CRM</h1>
-          <p className="text-gray-400 text-sm">Tenant-scoped customer records from Supabase</p>
-        </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-          <input placeholder="Search..." className="pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500/50" />
+          <p className="text-gray-400 text-sm">Customer records for your salon</p>
         </div>
       </div>
       <div className="glass rounded-2xl border border-white/5 overflow-hidden">
@@ -420,7 +510,7 @@ function CRMPage({ customers }) {
         </div>
         <div className="divide-y divide-white/5">
           {customers.map((customer) => (
-            <div key={customer.id} className="grid grid-cols-1 lg:grid-cols-[1fr_140px_100px_100px_120px] gap-3 items-center px-5 py-4 hover:bg-white/3 transition-colors">
+            <div key={customer.id} className="grid grid-cols-1 lg:grid-cols-[1fr_140px_100px_100px_120px] gap-3 items-center px-5 py-4 hover:bg-white/3">
               <div>
                 <div className="text-sm font-medium text-white">{customer.name}</div>
                 <div className="text-xs text-gray-500">Last visit · {new Date(customer.last_visit || customer.created_at).toLocaleDateString()}</div>
@@ -431,6 +521,7 @@ function CRMPage({ customers }) {
               <div className="text-sm text-white">{formatCurrency(customer.spend || 0)}</div>
             </div>
           ))}
+          {customers.length === 0 && <div className="py-12 text-center text-gray-500 text-sm">No customers yet</div>}
         </div>
       </div>
     </div>
@@ -471,6 +562,7 @@ function ReportsPage({ revenueSeries, peakHours }) {
                 <div className="h-2 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-brand-600 to-gold-500 rounded-full" style={{ width: `${Math.min(100, item.bookings * 20)}%` }} /></div>
               </div>
             ))}
+            {peakHours.length === 0 && <p className="text-sm text-gray-500">No booking data yet</p>}
           </div>
         </div>
       </div>
@@ -483,7 +575,13 @@ export default function OwnerDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const { profile, signOut, loading: authLoading } = useAuth();
-  const { metrics, revenueSeries, queue, staff, customers, services, peakHours, salon, loading, error, callNext, addWalkIn, addStaff, updateStaff, deleteStaff, mode } = useOwnerDashboardData(profile);
+  const {
+    metrics, revenueSeries, queue, staff, customers, services, peakHours, salon,
+    loading, error, needsSetup,
+    callNext, addWalkIn, addStaff, updateStaff, deleteStaff,
+    addService, editService, removeService, saveSalonSettings,
+    mode,
+  } = useOwnerDashboardData(profile);
 
   if (authLoading) {
     return (
@@ -507,13 +605,20 @@ export default function OwnerDashboard() {
     );
   }
 
-  const pageMap = useMemo(() => ({
+  // If salon not set up, show the setup flow
+  if (!loading && needsSetup) {
+    return <SetupShop />;
+  }
+
+  const pageMap = {
     overview: <OverviewPage profile={profile} metrics={metrics} revenueSeries={revenueSeries} queue={queue} mode={mode} />,
     queue: <QueuePage queue={queue} services={services} onCallNext={callNext} onAddWalkIn={addWalkIn} />,
     staff: <StaffPage staff={staff} onAdd={addStaff} onUpdate={updateStaff} onDelete={deleteStaff} />,
+    services: <ServicesPage services={services} onAdd={addService} onEdit={editService} onDelete={removeService} />,
     crm: <CRMPage customers={customers} />,
     reports: <ReportsPage revenueSeries={revenueSeries} peakHours={peakHours} />,
-  }), [addStaff, addWalkIn, callNext, customers, deleteStaff, metrics, mode, peakHours, profile, queue, revenueSeries, services, staff, updateStaff]);
+    settings: <SettingsPage salon={salon} onSave={saveSalonSettings} />,
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] flex">
@@ -530,12 +635,19 @@ export default function OwnerDashboard() {
               <input placeholder="Search..." className="pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500/50 w-48" />
             </div>
             <div className="relative"><Bell className="w-5 h-5 text-gray-400" /><div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-brand-500 text-white text-[8px] flex items-center justify-center">3</div></div>
-            <button onClick={async () => { await signOut(); navigate('/login/owner', { replace: true }); }} className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors" aria-label="Sign out"><LogOut className="w-4 h-4" /></button>
+            <button onClick={async () => { await signOut(); navigate('/login/owner', { replace: true }); }} className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors"><LogOut className="w-4 h-4" /></button>
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-white font-bold text-sm">{(profile?.name || 'A').charAt(0)}</div>
           </div>
         </header>
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-          {loading ? <div className="text-gray-400">Loading owner dashboard…</div> : <>{error && <div className="mb-4 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-300">{error}</div>}{pageMap[activePage]}</>}
+          {loading ? (
+            <div className="flex items-center gap-3 text-gray-400"><RefreshCw className="w-5 h-5 animate-spin" /> Loading dashboard…</div>
+          ) : (
+            <>
+              {error && <div className="mb-4 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-300">{error}</div>}
+              {pageMap[activePage]}
+            </>
+          )}
         </main>
       </div>
     </div>

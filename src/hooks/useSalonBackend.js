@@ -3,22 +3,27 @@ import {
   addStaffMember,
   addToQueue,
   createBookingWithQueue,
+  createService,
+  deleteService,
+  getQueueBySalonId,
   getQueueByTenant,
-  getSalonByTenant,
   getSalonsByOwner,
   isSupabaseConfigured,
   listBookings,
   listNotifications,
   listSalons,
+  listServicesBySalonId,
   listServicesByTenant,
+  listStaffBySalonId,
   listStaffByOwner,
-  listStaffByTenant,
   listUsersByTenant,
   resequenceQueue,
   subscribeToTenantTable,
   supabase,
   updateBookingStatus,
   updateQueueEntry,
+  updateService,
+  updateSalon,
 } from '../lib/supabase';
 import {
   cloneSample,
@@ -33,7 +38,7 @@ import {
 } from '../lib/sampleData';
 import { sendNotification } from '../lib/firebase';
 
-function formatCurrency(amount) {
+export function formatCurrency(amount) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount || 0);
 }
 
@@ -59,6 +64,8 @@ function computePeakHours(bookings) {
   return Object.entries(buckets).map(([hour, bookingsCount]) => ({ hour, bookings: bookingsCount })).sort((a, b) => a.hour.localeCompare(b.hour));
 }
 
+// ─── Sample state (demo / offline mode) ────────────────────────────────────
+
 function useSampleTenantState(profile) {
   const tenantId = profile?.tenant_id || 'tenant-sams-creation';
   const userId = profile?.id || 'usr-c-1';
@@ -71,39 +78,25 @@ function useSampleTenantState(profile) {
   const salons = useMemo(() => cloneSample(sampleSalons), []);
   const subscriptions = useMemo(() => cloneSample(sampleSubscriptions), []);
 
-  const createBooking = useCallback(async ({ serviceId, staffName, bookingType, bookingTime, paymentMethod }) => {
+  const createBookingFn = useCallback(async ({ serviceId, staffName, bookingType, bookingTime, paymentMethod }) => {
     const service = services.find((item) => item.id === serviceId);
     const bookingId = `bkg-${Date.now()}`;
     const booking = {
-      id: bookingId,
-      tenant_id: tenantId,
-      user_id: userId,
-      service_id: service?.id,
-      service_name: service?.name || 'Service',
-      staff_name: staffName,
-      booking_time: bookingTime,
-      status: 'confirmed',
+      id: bookingId, tenant_id: tenantId, user_id: userId,
+      service_id: service?.id, service_name: service?.name || 'Service',
+      staff_name: staffName, booking_time: bookingTime, status: 'confirmed',
       booking_type: bookingType,
       payment_status: paymentMethod === 'Cash at Salon' ? 'pending' : 'paid',
       total_amount: Number(service?.price || 0),
     };
     setBookings((current) => [booking, ...current]);
     if (bookingType === 'queue') {
-      setQueue((current) => [
-        ...current,
-        {
-          id: `que-${Date.now()}`,
-          tenant_id: tenantId,
-          user_id: userId,
-          customer_name: profile?.name || 'Customer',
-          phone: profile?.phone || '',
-          service_name: booking.service_name,
-          staff_name: staffName,
-          position: current.length + 1,
-          estimated_wait_minutes: current.length * 10,
-          status: 'waiting',
-        },
-      ]);
+      setQueue((current) => [...current, {
+        id: `que-${Date.now()}`, tenant_id: tenantId, user_id: userId,
+        customer_name: profile?.name || 'Customer', phone: profile?.phone || '',
+        service_name: booking.service_name, staff_name: staffName,
+        position: current.length + 1, estimated_wait_minutes: current.length * 10, status: 'waiting',
+      }]);
     }
     setNotifications((current) => [{ id: `not-${Date.now()}`, tenant_id: tenantId, user_id: userId, title: 'Booking confirmed', message: `${booking.service_name} booked successfully.`, type: 'booking_confirmed', read_status: false, created_at: new Date().toISOString() }, ...current]);
     return { data: booking, error: null };
@@ -118,68 +111,48 @@ function useSampleTenantState(profile) {
       if (nextWaiting) nextWaiting.status = 'in_progress';
       const following = nextQueue.filter((entry) => entry.status === 'waiting').sort((a, b) => a.position - b.position)[0];
       if (following) following.status = 'next';
-      return nextQueue
-        .filter((entry) => entry.status !== 'done')
-        .sort((a, b) => a.position - b.position)
-        .map((entry, index) => ({ ...entry, position: index + 1, estimated_wait_minutes: index * 10 }));
+      return nextQueue.filter((entry) => entry.status !== 'done').sort((a, b) => a.position - b.position).map((entry, index) => ({ ...entry, position: index + 1, estimated_wait_minutes: index * 10 }));
     });
     return { error: null };
   }, []);
 
   const addWalkIn = useCallback(async ({ customerName, serviceName }) => {
-    setQueue((current) => [
-      ...current,
-      {
-        id: `que-${Date.now()}`,
-        tenant_id: tenantId,
-        user_id: null,
-        customer_name: customerName,
-        phone: '',
-        service_name: serviceName,
-        staff_name: staff[0]?.name || 'Team',
-        position: current.length + 1,
-        estimated_wait_minutes: current.length * 10,
-        status: 'waiting',
-      },
-    ]);
+    setQueue((current) => [...current, {
+      id: `que-${Date.now()}`, tenant_id: tenantId, user_id: null,
+      customer_name: customerName, phone: '', service_name: serviceName,
+      staff_name: staff[0]?.name || 'Team',
+      position: current.length + 1, estimated_wait_minutes: current.length * 10, status: 'waiting',
+    }]);
     return { error: null };
   }, [staff, tenantId]);
 
   const addStaff = useCallback(async ({ name, specialty, experience, avatar_url }) => {
-    const generatedId = crypto.randomUUID?.() || `stf-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const newStaff = {
-      id: generatedId,
-      tenant_id: tenantId,
-      name,
-      specialty,
-      experience,
-      avatar: name?.charAt(0) || 'S',
-      avatar_url,
-      available: true,
-      rating: 4.8,
-      today_clients: 0,
+      id: crypto.randomUUID?.() || `stf-${Date.now()}`, tenant_id: tenantId,
+      name, specialty, experience, avatar: name?.charAt(0) || 'S', avatar_url,
+      available: true, rating: 4.8, today_clients: 0,
     };
     setStaff((current) => [...current, newStaff]);
     return { data: newStaff, error: null };
   }, [tenantId]);
 
-  const updateStaff = useCallback(async (id, updates) => {
-    return { data: updates, error: null };
-  }, []);
+  const updateStaff = useCallback(async (id, updates) => ({ data: updates, error: null }), []);
+  const deleteStaff = useCallback(async (id) => ({ error: null }), []);
 
-  const deleteStaff = useCallback(async (id) => {
-    return { error: null };
-  }, []);
-
-  return { services, staff, customers, bookings, queue, notifications, salons, subscriptions, createBooking, callNext, addWalkIn, addStaff, updateStaff, deleteStaff };
+  return { services, staff, customers, bookings, queue, notifications, salons, subscriptions, createBooking: createBookingFn, callNext, addWalkIn, addStaff, updateStaff, deleteStaff };
 }
+
+// ─── Customer App Hook ────────────────────────────────────────────────────
 
 export function useCustomerAppData(profile) {
   const sampleState = useSampleTenantState(profile);
-  const tenantId = profile?.tenant_id;
   const userId = profile?.id;
+
+  // Primary: salon_id from localStorage (set when customer scans QR / opens salon link)
+  const [localSalonId, setLocalSalonId] = useState(() => localStorage.getItem('salon_id') || '');
+
   const [state, setState] = useState({
-    loading: isSupabaseConfigured,
+    loading: isSupabaseConfigured && !!localSalonId,
     services: [],
     staff: [],
     bookings: [],
@@ -187,67 +160,28 @@ export function useCustomerAppData(profile) {
     notifications: [],
     salon: null,
     error: '',
+    needsSalonEntry: !localSalonId && isSupabaseConfigured,
   });
 
-  const load = useCallback(async () => {
-    // Relaxed check: Only userId and isSupabaseConfigured are strictly required
-    if (!isSupabaseConfigured || !userId) {
-      setState((current) => ({ ...current, loading: false }));
+  const load = useCallback(async (salonId) => {
+    const activeSalonId = salonId || localSalonId;
+    if (!isSupabaseConfigured || !userId || !activeSalonId) {
+      setState((current) => ({ ...current, loading: false, needsSalonEntry: !activeSalonId }));
       return;
     }
-    
-    try {
-      // 1. Fetch salon details to find the owner_id and identify the salon
-      let ownerId = null;
-      let salon = null;
-      
-      if (tenantId) {
-        const { data: s } = await getSalonByTenant(tenantId);
-        salon = s;
-        ownerId = salon?.owner_id || salon?.owner_user_id;
-      } else {
-        // Fallback for owners testing their own app: Find a salon they own
-        const { data: salons } = await getSalonsByOwner(userId);
-        if (salons?.length > 0) {
-          salon = salons[0];
-          ownerId = salon.owner_id || salon.owner_user_id;
-        } else {
-          // Check if this user is an "owner" and has staff - auto-provision if so
-          const { data: staffList } = await listStaffByOwner(userId);
-          if (staffList?.length > 0) {
-            console.log("Auto-provisioning salon for owner in Customer App...");
-            const { data: newSalon } = await supabase.from('salons').insert({
-              owner_id: userId,
-              name: "Sam's Creation",
-              tenant_id: `tenant-${userId.substring(0, 8)}`,
-            }).select().single();
-            if (newSalon) {
-              salon = newSalon;
-              ownerId = userId;
-            }
-          }
-        }
-      }
 
-      // 2. Fetch everything else using the identified salon's IDs
-      const activeTenant = tenantId || salon?.tenant_id;
-      const [servicesRes, bookingsRes, queueRes, notificationsRes, staffRes, staffByTenantRes] = await Promise.all([
-        activeTenant ? listServicesByTenant(activeTenant) : Promise.resolve({ data: [] }),
-        listBookings({ tenantId: activeTenant, userId }),
-        activeTenant ? getQueueByTenant(activeTenant) : Promise.resolve({ data: [] }),
+    try {
+      const [staffRes, servicesRes, bookingsRes, queueRes, notificationsRes, salonRes] = await Promise.all([
+        listStaffBySalonId(activeSalonId),
+        listServicesBySalonId(activeSalonId),
+        listBookings({ salonId: activeSalonId, userId }),
+        getQueueBySalonId(activeSalonId),
         listNotifications(userId),
-        ownerId ? listStaffByOwner(ownerId) : Promise.resolve({ data: [] }),
-        activeTenant ? listStaffByTenant(activeTenant) : Promise.resolve({ data: [] }),
+        supabase.from('salons').select('*').eq('id', activeSalonId).single(),
       ]);
 
-      // Merge staff from both sources, deduplicate by id
-      const staffMap = new Map();
-      for (const item of [...(staffRes.data || []), ...(staffByTenantRes.data || [])]) {
-        staffMap.set(item.id, item);
-      }
-      const staff = [...staffMap.values()].map((item) => ({
-        id: item.id,
-        name: item.name,
+      const staff = (staffRes.data || []).map((item) => ({
+        id: item.id, name: item.name,
         specialty: item.specialty || 'Salon Expert',
         rating: item.rating || 5.0,
         experience: item.experience || '5 yrs',
@@ -264,36 +198,44 @@ export function useCustomerAppData(profile) {
         bookings: bookingsRes.data || [],
         queue: queueRes.data || [],
         notifications: notificationsRes.data || [],
-        salon,
-        error: (servicesRes.error?.message || bookingsRes.error?.message || queueRes.error?.message || notificationsRes.error?.message || staffRes.error?.message) || '',
+        salon: salonRes.data || null,
+        error: staffRes.error?.message || servicesRes.error?.message || '',
+        needsSalonEntry: false,
       });
     } catch (error) {
-      console.log("ERROR loading customer app data:", error);
-      setState((current) => ({ ...current, loading: false, error: error.message || 'Failed to load app data.' }));
+      setState((current) => ({ ...current, loading: false, error: error.message || 'Failed to load.' }));
     }
-  }, [tenantId, userId]);
+  }, [userId, localSalonId]);
+
+  // Allow customer to enter a salon slug manually
+  const enterSalonBySlug = useCallback(async (slug) => {
+    if (!slug) return;
+    const { data: salon } = await supabase.from('salons').select('*').eq('slug', slug.trim()).single();
+    if (!salon) return { error: 'Salon not found' };
+    localStorage.setItem('salon_id', salon.id);
+    localStorage.setItem('salon_name', salon.name);
+    localStorage.setItem('salon_slug', salon.slug);
+    setLocalSalonId(salon.id);
+    await load(salon.id);
+    return { error: null };
+  }, [load]);
 
   useEffect(() => {
     load();
-    if (!isSupabaseConfigured || !tenantId || !userId) return undefined;
-    const offQueue = subscribeToTenantTable({ table: 'queue', tenantId, onChange: load });
-    const offBookings = subscribeToTenantTable({ table: 'bookings', tenantId, onChange: load });
-    const offStaff = subscribeToTenantTable({ table: 'staff', onChange: load });
-    return () => {
-      offQueue?.();
-      offBookings?.();
-      offStaff?.();
-    };
-  }, [load, tenantId, userId]);
+    if (!isSupabaseConfigured || !localSalonId || !userId) return undefined;
+    const offQueue = subscribeToTenantTable({ table: 'queue', salonId: localSalonId, onChange: load });
+    const offStaff = subscribeToTenantTable({ table: 'staff', salonId: localSalonId, onChange: load });
+    return () => { offQueue?.(); offStaff?.(); };
+  }, [load, localSalonId, userId]);
 
   const createBooking = useCallback(async ({ serviceId, staffName, bookingType, bookingTime, paymentMethod }) => {
-    if (!isSupabaseConfigured || !tenantId || !userId) {
+    if (!isSupabaseConfigured || !userId || !localSalonId) {
       return sampleState.createBooking({ serviceId, staffName, bookingType, bookingTime, paymentMethod });
     }
-
     const service = state.services.find((item) => item.id === serviceId);
     const bookingPayload = {
-      tenant_id: tenantId,
+      salon_id: localSalonId,
+      tenant_id: state.salon?.tenant_id,
       user_id: userId,
       service_id: service?.id || null,
       service_name: service?.name || 'Service',
@@ -306,78 +248,87 @@ export function useCustomerAppData(profile) {
       total_amount: Number(service?.price || 0),
     };
     const queuePayload = bookingType === 'queue' ? {
-      tenant_id: tenantId,
+      salon_id: localSalonId,
+      tenant_id: state.salon?.tenant_id,
       user_id: userId,
       customer_name: profile?.name || 'Customer',
       phone: profile?.phone || '',
       service_name: bookingPayload.service_name,
       staff_name: staffName,
       status: 'waiting',
+      position: (state.queue?.length || 0) + 1,
+      estimated_wait_minutes: (state.queue?.length || 0) * 10,
     } : null;
 
     const response = await createBookingWithQueue({ booking: bookingPayload, queueEntry: queuePayload });
     if (!response.error) {
-      await sendNotification({ userId, tenantId, type: 'booking_confirmed', message: `${bookingPayload.service_name} booked successfully.` });
+      await sendNotification({ userId, tenantId: state.salon?.tenant_id, type: 'booking_confirmed', message: `${bookingPayload.service_name} booked successfully.` });
       await load();
     }
     return response;
-  }, [load, profile?.name, profile?.phone, state.services, tenantId, userId, sampleState]);
+  }, [load, profile?.name, profile?.phone, state.services, state.salon, state.queue, userId, localSalonId, sampleState]);
 
   if (!isSupabaseConfigured) {
-    return { ...sampleState, loading: false, error: '', mode: 'sample' };
+    return { ...sampleState, loading: false, error: '', mode: 'sample', needsSalonEntry: false, enterSalonBySlug };
   }
 
-  return { ...state, createBooking, mode: 'live' };
+  return { ...state, createBooking, mode: 'live', enterSalonBySlug };
 }
 
+// ─── Owner Dashboard Hook ─────────────────────────────────────────────────
+
 export function useOwnerDashboardData(profile) {
-  const tenantId = profile?.tenant_id;
   const sampleState = useSampleTenantState(profile);
-  const [state, setState] = useState({ loading: isSupabaseConfigured, services: [], staff: [], customers: [], bookings: [], queue: [], salon: null, error: '' });
+  const [state, setState] = useState({
+    loading: isSupabaseConfigured,
+    services: [],
+    staff: [],
+    customers: [],
+    bookings: [],
+    queue: [],
+    salon: null,
+    error: '',
+    needsSetup: false,
+  });
 
   const load = useCallback(async () => {
-    const ownerId = profile?.id; // Firebase UID
+    const ownerId = profile?.id;
     if (!isSupabaseConfigured || !ownerId) {
       setState((current) => ({ ...current, loading: false }));
       return;
     }
 
     try {
-      // Prioritize ownerId for scoping, tenantId is secondary
-      const [servicesRes, customersRes, bookingsRes, queueRes, staffRes, salonsRes] = await Promise.all([
-        tenantId ? listServicesByTenant(tenantId) : Promise.resolve({ data: [] }),
-        tenantId ? listUsersByTenant(tenantId, 'customer') : Promise.resolve({ data: [] }),
-        listBookings({ tenantId, ownerId }),
-        getQueueByTenant(tenantId, ownerId),
-        listStaffByOwner(ownerId),
-        getSalonsByOwner(ownerId),
+      // 1. Get owner's salon
+      const { data: salons } = await getSalonsByOwner(ownerId);
+      const salon = salons?.[0] || null;
+
+      if (!salon || !salon.is_setup) {
+        setState((current) => ({ ...current, loading: false, needsSetup: true, salon }));
+        return;
+      }
+
+      const salonId = salon.id;
+
+      // 2. Fetch all data scoped to this salon
+      const [staffRes, servicesRes, customersRes, bookingsRes, queueRes] = await Promise.all([
+        listStaffBySalonId(salonId),
+        listServicesBySalonId(salonId),
+        listUsersByTenant(salon.tenant_id, 'customer'),
+        listBookings({ salonId }),
+        getQueueBySalonId(salonId),
       ]);
 
-      const staff = (staffRes.data || [])
-        .map((item) => ({
-          id: item.id,
-          name: item.name,
-          specialty: item.specialty || 'Salon Expert',
-          status: item.available === false ? 'break' : 'available',
-          today: item.today_clients || 0,
-          rating: item.rating || 5.0,
-          experience: item.experience || '',
-          avatar_url: item.avatar_url || '',
-          avatar: item.name?.charAt(0) || 'S',
-        }));
-
-      let salon = (salonsRes.data && salonsRes.data[0]) || null;
-      
-      // Auto-provision a salon if missing for an owner with staff
-      if (!salon && staffRes.data?.length > 0) {
-        console.log("Auto-provisioning salon for owner...");
-        const { data: newSalon } = await supabase.from('salons').insert({
-          owner_id: ownerId,
-          name: "Sam's Creation",
-          tenant_id: `tenant-${ownerId.substring(0, 8)}`,
-        }).select().single();
-        if (newSalon) salon = newSalon;
-      }
+      const staff = (staffRes.data || []).map((item) => ({
+        id: item.id, name: item.name,
+        specialty: item.specialty || 'Salon Expert',
+        status: item.available === false ? 'break' : 'available',
+        today: item.today_clients || 0,
+        rating: item.rating || 5.0,
+        experience: item.experience || '',
+        avatar_url: item.avatar_url || '',
+        avatar: item.name?.charAt(0) || 'S',
+      }));
 
       setState({
         loading: false,
@@ -387,130 +338,134 @@ export function useOwnerDashboardData(profile) {
         queue: queueRes.data || [],
         staff,
         salon,
-        error: (servicesRes.error?.message || customersRes.error?.message || bookingsRes.error?.message || queueRes.error?.message || staffRes.error?.message || salonsRes.error?.message) || '',
+        error: staffRes.error?.message || servicesRes.error?.message || '',
+        needsSetup: false,
       });
     } catch (error) {
-      console.log("ERROR loading dashboard:", error);
-      setState((current) => ({ ...current, loading: false, error: error.message || 'Failed to load owner dashboard.' }));
+      setState((current) => ({ ...current, loading: false, error: error.message || 'Failed to load dashboard.' }));
     }
-  }, [tenantId, profile?.id]);
+  }, [profile?.id]);
+
+  // ── Staff ──
 
   const addStaff = useCallback(async ({ name, specialty, experience, avatar_url }) => {
-    const ownerId = profile?.id; // Firebase UID
+    const ownerId = profile?.id;
     if (!isSupabaseConfigured || !ownerId) return sampleState.addStaff({ name, specialty, experience, avatar_url });
-    if (!ownerId) {
-      console.log("ERROR: No owner_id (user.uid) found");
-      return { error: { message: 'Owner ID missing' } };
-    }
-
+    const salonId = state.salon?.id;
     try {
-      const { data: newStaff, error } = await addStaffMember({
-        owner_id: ownerId,
-        tenant_id: tenantId,
-        name,
-        specialty,
-        experience,
-        avatar_url,
-      });
-      
-      if (error) {
-        console.log("ERROR adding staff:", error);
-        return { data: null, error };
-      }
-      
+      const { data: newStaff, error } = await addStaffMember({ owner_id: ownerId, salon_id: salonId, name, specialty, experience, avatar_url });
+      if (error) return { data: null, error };
       await load();
       return { data: newStaff, error: null };
     } catch (err) {
-      console.log("UNEXPECTED ERROR in addStaff:", err);
       return { data: null, error: err };
     }
-  }, [load, sampleState, tenantId, profile?.id]);
+  }, [load, sampleState, state.salon, profile?.id]);
 
   const updateStaff = useCallback(async (id, updates) => {
-    const ownerId = profile?.id;
-    if (!isSupabaseConfigured || !ownerId) return sampleState.updateStaff(id, updates);
-    
-    const { data, error } = await supabase.from('staff').update({
-      name: updates.name,
-      specialty: updates.specialty,
-      experience: updates.experience,
-      avatar_url: updates.avatar_url,
-      available: updates.available,
-      rating: updates.rating,
-      today_clients: updates.today_clients
-    }).eq('id', id).select().single();
-    
-    if (error) console.log("ERROR updating staff:", error);
+    if (!isSupabaseConfigured) return sampleState.updateStaff(id, updates);
+    const { data, error } = await supabase.from('staff').update({ name: updates.name, specialty: updates.specialty, experience: updates.experience, avatar_url: updates.avatar_url }).eq('id', id).select().single();
     if (!error) await load();
     return { data, error };
-  }, [load, sampleState, profile?.id]);
+  }, [load, sampleState]);
 
   const deleteStaff = useCallback(async (id) => {
-    const ownerId = profile?.id;
-    if (!isSupabaseConfigured || !ownerId) return sampleState.deleteStaff(id);
+    if (!isSupabaseConfigured) return sampleState.deleteStaff(id);
     const { error } = await supabase.from('staff').delete().eq('id', id);
-    if (error) console.log("ERROR deleting staff:", error);
     if (!error) await load();
     return { error };
-  }, [load, sampleState, profile?.id]);
+  }, [load, sampleState]);
 
-  useEffect(() => {
-    load();
-    const ownerId = profile?.id;
-    if (!isSupabaseConfigured || !ownerId) return undefined;
-    
-    // Subscribe to all relevant tables. Changes will trigger 'load' which handles filtering.
-    const offQueue = subscribeToTenantTable({ table: 'queue', tenantId, onChange: load });
-    const offBookings = subscribeToTenantTable({ table: 'bookings', tenantId, onChange: load });
-    const offStaff = subscribeToTenantTable({ table: 'staff', onChange: load }); // Listening to all staff changes
-    
-    return () => {
-      offQueue?.();
-      offBookings?.();
-      offStaff?.();
-    };
-  }, [load, tenantId, profile?.id]);
+  // ── Services ──
+
+  const addService = useCallback(async ({ name, price, category, duration_minutes }) => {
+    if (!isSupabaseConfigured) return { error: null };
+    const salonId = state.salon?.id;
+    const tenantId = state.salon?.tenant_id;
+    const { data, error } = await createService({ salon_id: salonId, tenant_id: tenantId, name, price: Number(price), category: category || 'General', duration_minutes: duration_minutes || 30, active: true });
+    if (!error) await load();
+    return { data, error };
+  }, [load, state.salon]);
+
+  const editService = useCallback(async (id, updates) => {
+    if (!isSupabaseConfigured) return { error: null };
+    const { data, error } = await updateService(id, updates);
+    if (!error) await load();
+    return { data, error };
+  }, [load]);
+
+  const removeService = useCallback(async (id) => {
+    if (!isSupabaseConfigured) return { error: null };
+    const { error } = await deleteService(id);
+    if (!error) await load();
+    return { error };
+  }, [load]);
+
+  // ── Queue ──
 
   const callNext = useCallback(async () => {
     const ownerId = profile?.id;
     if (!isSupabaseConfigured || !ownerId) return sampleState.callNext();
+    const salonId = state.salon?.id;
     const currentActive = state.queue.find((item) => item.status === 'in_progress');
     if (currentActive) await updateQueueEntry(currentActive.id, { status: 'done' });
-    const nextQueue = state.queue.find((item) => item.status === 'next') || state.queue.find((item) => item.status === 'waiting');
-    if (nextQueue) {
-      await updateQueueEntry(nextQueue.id, { status: 'in_progress' });
-      if (nextQueue.user_id) {
-        await sendNotification({ userId: nextQueue.user_id, tenantId, type: 'your_turn_next', message: `${nextQueue.customer_name}, your turn is next.` });
-      }
+    const nextEntry = state.queue.find((item) => item.status === 'next') || state.queue.find((item) => item.status === 'waiting');
+    if (nextEntry) {
+      await updateQueueEntry(nextEntry.id, { status: 'in_progress' });
+      if (nextEntry.user_id) await sendNotification({ userId: nextEntry.user_id, tenantId: state.salon?.tenant_id, type: 'your_turn_next', message: `${nextEntry.customer_name}, your turn is next.` });
     }
-    const following = state.queue.filter((item) => item.status === 'waiting' && item.id !== nextQueue?.id).sort((a, b) => a.position - b.position)[0];
+    const following = state.queue.filter((item) => item.status === 'waiting' && item.id !== nextEntry?.id).sort((a, b) => a.position - b.position)[0];
     if (following) await updateQueueEntry(following.id, { status: 'next' });
-    await resequenceQueue(tenantId);
+    await resequenceQueue(undefined, salonId);
     await load();
     return { error: null };
-  }, [load, sampleState, state.queue, tenantId]);
+  }, [load, sampleState, state.queue, state.salon, profile?.id]);
 
   const addWalkIn = useCallback(async ({ customerName, serviceName }) => {
     const ownerId = profile?.id;
     if (!isSupabaseConfigured || !ownerId) return sampleState.addWalkIn({ customerName, serviceName });
-    const entry = await addToQueue({ 
-      tenant_id: tenantId, 
+    const salonId = state.salon?.id;
+    const entry = await addToQueue({
+      salon_id: salonId,
+      tenant_id: state.salon?.tenant_id,
       owner_id: ownerId,
-      customer_name: customerName, 
-      service_name: serviceName, 
-      staff_name: state.staff[0]?.name || 'Salon Team', 
-      status: 'waiting' 
+      customer_name: customerName,
+      service_name: serviceName,
+      staff_name: state.staff[0]?.name || 'Salon Team',
+      status: 'waiting',
+      position: (state.queue?.length || 0) + 1,
+      estimated_wait_minutes: (state.queue?.length || 0) * 10,
     });
     await load();
     return entry;
-  }, [load, sampleState, state.staff, tenantId, profile?.id]);
+  }, [load, sampleState, state.staff, state.queue, state.salon, profile?.id]);
+
+  // ── Update salon settings ──
+  const saveSalonSettings = useCallback(async (updates) => {
+    const salonId = state.salon?.id;
+    if (!isSupabaseConfigured || !salonId) return { error: null };
+    const { data, error } = await updateSalon(salonId, updates);
+    if (!error) await load();
+    return { data, error };
+  }, [load, state.salon]);
+
+  useEffect(() => {
+    load();
+    const ownerId = profile?.id;
+    const salonId = state.salon?.id;
+    if (!isSupabaseConfigured || !ownerId) return undefined;
+    const offQueue = subscribeToTenantTable({ table: 'queue', salonId, onChange: load });
+    const offStaff = subscribeToTenantTable({ table: 'staff', salonId, onChange: load });
+    return () => { offQueue?.(); offStaff?.(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [load, profile?.id]);
 
   const current = !isSupabaseConfigured ? sampleState : state;
   const metrics = useMemo(() => {
     const bookings = current.bookings || [];
     const queue = current.queue || [];
     const customers = current.customers || [];
-    const revenue = bookings.reduce((sum, booking) => sum + Number(booking.total_amount || 0), 0);
+    const revenue = bookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
     return {
       revenue,
       bookings: bookings.length,
@@ -524,6 +479,7 @@ export function useOwnerDashboardData(profile) {
     ...current,
     loading: !isSupabaseConfigured ? false : state.loading,
     error: !isSupabaseConfigured ? '' : state.error,
+    needsSetup: !isSupabaseConfigured ? false : state.needsSetup,
     metrics,
     revenueSeries: computeRevenueSeries(current.bookings || []),
     peakHours: computePeakHours(current.bookings || []),
@@ -532,9 +488,15 @@ export function useOwnerDashboardData(profile) {
     addStaff,
     updateStaff,
     deleteStaff,
+    addService,
+    editService,
+    removeService,
+    saveSalonSettings,
     mode: !isSupabaseConfigured ? 'sample' : 'live',
   };
 }
+
+// ─── Admin Dashboard Hook ─────────────────────────────────────────────────
 
 export function useAdminDashboardData() {
   const [state, setState] = useState({ loading: isSupabaseConfigured, salons: [], subscriptions: [], auditLogs: [], error: '' });
@@ -599,5 +561,3 @@ export function useAdminDashboardData() {
     mode: !isSupabaseConfigured ? 'sample' : 'live',
   };
 }
-
-export { formatCurrency };

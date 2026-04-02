@@ -37,6 +37,12 @@ export async function getSalonById(id) {
   return { data, error };
 }
 
+export async function getSalonBySlug(slug) {
+  const { data, error } = await supabase.from('salons').select('*').eq('slug', slug).single();
+  if (error) console.log("ERROR getSalonBySlug:", error);
+  return { data, error };
+}
+
 export async function getSalonByTenant(tenantId) {
   const { data, error } = await supabase.from('salons').select('*').eq('tenant_id', tenantId).single();
   if (error) console.log("ERROR:", error);
@@ -55,11 +61,53 @@ export async function getSalonsByOwner(ownerId) {
   return { data, error };
 }
 
+export async function updateSalon(id, updates) {
+  const { data, error } = await supabase.from('salons').update(updates).eq('id', id).select().single();
+  if (error) console.log("ERROR updateSalon:", error);
+  return { data, error };
+}
+
+// ─── Staff ─────────────────────────────────────────────────────────────────
+
+export async function listStaffBySalonId(salonId) {
+  const { data, error } = await supabase.from('staff').select('*').eq('salon_id', salonId).order('created_at', { ascending: false });
+  if (error) console.log("ERROR listStaffBySalonId:", error);
+  return { data, error };
+}
+
+// ─── Services ───────────────────────────────────────────────────────────────
+
 export async function listServicesByTenant(tenantId) {
   const { data, error } = await supabase.from('services').select('*').eq('tenant_id', tenantId).eq('active', true).order('name');
   if (error) console.log("ERROR:", error);
   return { data, error };
 }
+
+export async function listServicesBySalonId(salonId) {
+  const { data, error } = await supabase.from('services').select('*').eq('salon_id', salonId).eq('active', true).order('name');
+  if (error) console.log("ERROR listServicesBySalonId:", error);
+  return { data, error };
+}
+
+export async function createService(data) {
+  const { data: result, error } = await supabase.from('services').insert(data).select().single();
+  if (error) console.log("ERROR createService:", error);
+  return { data: result, error };
+}
+
+export async function updateService(id, updates) {
+  const { data, error } = await supabase.from('services').update(updates).eq('id', id).select().single();
+  if (error) console.log("ERROR updateService:", error);
+  return { data, error };
+}
+
+export async function deleteService(id) {
+  const { error } = await supabase.from('services').delete().eq('id', id);
+  if (error) console.log("ERROR deleteService:", error);
+  return { error };
+}
+
+// ─── Bookings ───────────────────────────────────────────────────────────────
 
 export async function createBooking(booking) {
   const { data, error } = await supabase.from('bookings').insert(booking).select().single();
@@ -67,9 +115,10 @@ export async function createBooking(booking) {
   return { data, error };
 }
 
-export async function listBookings({ tenantId, userId, ownerId, limit } = {}) {
+export async function listBookings({ tenantId, userId, ownerId, salonId, limit } = {}) {
   let query = supabase.from('bookings').select('*').order('booking_time', { ascending: true });
-  if (tenantId) query = query.eq('tenant_id', tenantId);
+  if (salonId) query = query.eq('salon_id', salonId);
+  else if (tenantId) query = query.eq('tenant_id', tenantId);
   if (userId) query = query.eq('user_id', userId);
   if (ownerId) query = query.eq('owner_id', ownerId);
   if (limit) query = query.limit(limit);
@@ -89,6 +138,8 @@ export async function updateBookingStatus(id, status) {
   return { data, error };
 }
 
+// ─── Queue ──────────────────────────────────────────────────────────────────
+
 export async function getQueueByTenant(tenantId, ownerId) {
   let query = supabase.from('queue').select('*').order('position', { ascending: true });
   if (tenantId) query = query.eq('tenant_id', tenantId);
@@ -96,6 +147,12 @@ export async function getQueueByTenant(tenantId, ownerId) {
   
   const { data, error } = await query;
   if (error) console.log("ERROR:", error);
+  return { data, error };
+}
+
+export async function getQueueBySalonId(salonId) {
+  const { data, error } = await supabase.from('queue').select('*').eq('salon_id', salonId).order('position', { ascending: true });
+  if (error) console.log("ERROR getQueueBySalonId:", error);
   return { data, error };
 }
 
@@ -111,8 +168,8 @@ export async function updateQueueEntry(id, updates) {
   return { data, error };
 }
 
-export async function resequenceQueue(tenantId) {
-  const { data, error } = await getQueueByTenant(tenantId);
+export async function resequenceQueue(tenantId, salonId) {
+  const { data, error } = salonId ? await getQueueBySalonId(salonId) : await getQueueByTenant(tenantId);
   if (error || !data) return { data, error };
   const updates = data
     .filter((item) => ['waiting', 'in_progress', 'next'].includes(item.status))
@@ -132,6 +189,8 @@ export async function createBookingWithQueue({ booking, queueEntry }) {
   return { data: { booking: bookingRow, queue: queueRow }, error: queueError };
 }
 
+// ─── Notifications ──────────────────────────────────────────────────────────
+
 export async function listNotifications(userId) {
   return supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false });
 }
@@ -141,6 +200,8 @@ export async function markNotificationRead(id) {
   if (error) console.log("ERROR:", error);
   return { data, error };
 }
+
+// ─── Staff (legacy helpers) ─────────────────────────────────────────────────
 
 export async function listStaffByOwner(ownerId) {
   const { data, error } = await supabase.from('staff').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false });
@@ -160,6 +221,8 @@ export async function addStaffMember(staffData) {
   return { data, error };
 }
 
+// ─── Users / CRM ────────────────────────────────────────────────────────────
+
 export async function listUsersByTenant(tenantId, role) {
   let query = supabase.from('users').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   if (role) query = query.eq('role', role);
@@ -175,16 +238,19 @@ export async function upsertSubscription(data) {
   return { data: result, error };
 }
 
-export function subscribeToTenantTable({ table, tenantId, onChange, filter }) {
-  const topic = [`salonos`, table, tenantId || 'all', filter || 'all', Date.now()].join('-');
+// ─── Realtime ───────────────────────────────────────────────────────────────
+
+export function subscribeToTenantTable({ table, tenantId, salonId, onChange, filter }) {
+  const topic = [`salonos`, table, salonId || tenantId || 'all', filter || 'all', Date.now()].join('-');
   let channel = supabase.channel(topic);
+  const resolvedFilter = filter || (salonId ? `salon_id=eq.${salonId}` : tenantId ? `tenant_id=eq.${tenantId}` : undefined);
   channel = channel.on(
     'postgres_changes',
     {
       event: '*',
       schema: 'public',
       table,
-      filter: filter || (tenantId ? `tenant_id=eq.${tenantId}` : undefined),
+      filter: resolvedFilter,
     },
     onChange,
   );
