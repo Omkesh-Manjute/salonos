@@ -55,7 +55,7 @@ export default function RoleLogin({ role = 'owner' }) {
       const { data, error: authError } = await signInWithGoogle();
       if (authError) throw authError;
       await refreshProfile(role);
-      navigate(from, { replace: true });
+      navigate(content.redirect, { replace: true });
     } catch (err) {
       setError(err.message || 'Google login failed.');
     } finally {
@@ -97,14 +97,15 @@ export default function RoleLogin({ role = 'owner' }) {
       if (role === 'admin' && (demoMode || phone.includes('88888'))) {
         if (otp !== '123456') throw new Error('Invalid OTP for demo.');
         await startDemoSession(role, { phone });
-        navigate(from, { replace: true });
+        navigate(content.redirect, { replace: true });
         return;
       }
 
       const { error: verifyError } = await verifyFirebaseOtp(otp);
       if (verifyError) throw verifyError;
       await refreshProfile(role);
-      navigate(from, { replace: true });
+      // Always navigate to the role's correct home
+      navigate(content.redirect, { replace: true });
     } catch (err) {
       setError(err.message || 'OTP verification failed.');
     } finally {
@@ -126,16 +127,18 @@ export default function RoleLogin({ role = 'owner' }) {
       // Demo bypass for email (Admin only)
       if (role === 'admin' && email === content.demoEmail && password === content.demoPassword) {
         await startDemoSession(role, { name: 'Super Admin', email });
-        navigate(from, { replace: true });
+        navigate(content.redirect, { replace: true });
         return;
       }
 
       const { data, error: authError } = await signInWithEmailFirebase(email, password);
       if (authError) throw authError;
 
-      // Ensure profile is loaded before redirecting
+      // CRITICAL: update the role in Supabase FIRST, then navigate
+      // This prevents ProtectedRoute from seeing the old role and redirecting wrong
       await refreshProfile(role);
-      navigate(from, { replace: true });
+      // Always go directly to the role's home path — never rely on `from`
+      navigate(content.redirect, { replace: true });
     } catch (err) {
       setError(err.message || 'Unable to sign in right now.');
     } finally {

@@ -10,6 +10,7 @@ export default function ProtectedRoute({ children, requiredRole }) {
   const { user, profile, loading, defaultPathForRole } = useAuth();
   const location = useLocation();
 
+  // Still loading auth state
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
@@ -21,12 +22,26 @@ export default function ProtectedRoute({ children, requiredRole }) {
     );
   }
 
+  // Not logged in at all
   if (!user) {
     const loginPaths = { customer: '/login/customer', owner: '/login/owner', admin: '/login/admin' };
     return <Navigate to={loginPaths[requiredRole] || '/login/customer'} state={{ from: location }} replace />;
   }
 
-  if (profile && requiredRole && profile.role !== requiredRole) {
+  // User is logged in but profile not yet fetched from Supabase — wait
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
+          <p className="text-gray-400 text-sm">Setting up your profile…</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Logged in with wrong role → go to their correct route
+  if (requiredRole && profile.role !== requiredRole) {
     return <Navigate to={defaultPathForRole(profile.role)} replace />;
   }
 
