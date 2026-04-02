@@ -14,8 +14,10 @@ import {
   listSalons,
   listServicesBySalonId,
   listServicesByTenant,
+  listServicesForSalon,
   listStaffBySalonId,
   listStaffByOwner,
+  listStaffForSalon,
   listUsersByTenant,
   resequenceQueue,
   subscribeToTenantTable,
@@ -171,13 +173,15 @@ export function useCustomerAppData(profile) {
     }
 
     try {
-      const [staffRes, servicesRes, bookingsRes, queueRes, notificationsRes, salonRes] = await Promise.all([
-        listStaffBySalonId(activeSalonId),
-        listServicesBySalonId(activeSalonId),
+      // Fetch salon first to get owner_id + tenant_id for robust OR queries
+      const { data: salon } = await supabase.from('salons').select('*').eq('id', activeSalonId).single();
+
+      const [staffRes, servicesRes, bookingsRes, queueRes, notificationsRes] = await Promise.all([
+        listStaffForSalon(activeSalonId, salon?.owner_id),
+        listServicesForSalon(activeSalonId, salon?.tenant_id),
         listBookings({ salonId: activeSalonId, userId }),
         getQueueBySalonId(activeSalonId),
         listNotifications(userId),
-        supabase.from('salons').select('*').eq('id', activeSalonId).single(),
       ]);
 
       const staff = (staffRes.data || []).map((item) => ({
@@ -191,15 +195,18 @@ export function useCustomerAppData(profile) {
         today_clients: item.today_clients || 0,
       }));
 
+      // Only show active queue entries to customer
+      const activeQueue = (queueRes.data || []).filter(q => ['waiting', 'in_progress', 'next'].includes(q.status));
+
       setState({
         loading: false,
         services: servicesRes.data || [],
         staff,
         bookings: bookingsRes.data || [],
-        queue: queueRes.data || [],
+        queue: activeQueue,
         notifications: notificationsRes.data || [],
-        salon: salonRes.data || null,
-        error: staffRes.error?.message || servicesRes.error?.message || '',
+        salon: salon || null,
+        error: '',
         needsSalonEntry: false,
       });
     } catch (error) {
@@ -310,11 +317,11 @@ export function useOwnerDashboardData(profile) {
 
       const salonId = salon.id;
 
-      // 2. Fetch all data scoped to this salon
+      // 2. Fetch all data with robust OR queries (handles legacy data without salon_id)
       const [staffRes, servicesRes, customersRes, bookingsRes, queueRes] = await Promise.all([
-        listStaffBySalonId(salonId),
-        listServicesBySalonId(salonId),
-        listUsersByTenant(salon.tenant_id, 'customer'),
+        listStaffForSalon(salonId, ownerId),
+        listServicesForSalon(salonId, salon.tenant_id),
+        listUsersByTenant(salon.tenant_id || '', 'customer'),
         listBookings({ salonId }),
         getQueueBySalonId(salonId),
       ]);

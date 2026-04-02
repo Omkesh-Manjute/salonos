@@ -75,6 +75,24 @@ export async function listStaffBySalonId(salonId) {
   return { data, error };
 }
 
+// Robust: finds staff by salon_id OR owner_id (fallback for legacy data)
+export async function listStaffForSalon(salonId, ownerId) {
+  if (!salonId && !ownerId) return { data: [], error: null };
+  let query = supabase.from('staff').select('*');
+  if (salonId && ownerId) {
+    query = query.or(`salon_id.eq.${salonId},owner_id.eq.${ownerId}`);
+  } else if (salonId) {
+    query = query.eq('salon_id', salonId);
+  } else {
+    query = query.eq('owner_id', ownerId);
+  }
+  const { data, error } = await query.order('created_at', { ascending: false });
+  if (error) console.log('ERROR listStaffForSalon:', error);
+  // Deduplicate by id (OR query can return duplicates)
+  const seen = new Set();
+  return { data: (data || []).filter(r => { if (seen.has(r.id)) return false; seen.add(r.id); return true; }), error };
+}
+
 // ─── Services ───────────────────────────────────────────────────────────────
 
 export async function listServicesByTenant(tenantId) {
@@ -87,6 +105,24 @@ export async function listServicesBySalonId(salonId) {
   const { data, error } = await supabase.from('services').select('*').eq('salon_id', salonId).eq('active', true).order('name');
   if (error) console.log("ERROR listServicesBySalonId:", error);
   return { data, error };
+}
+
+// Robust: finds services by salon_id OR tenant_id (fallback for legacy data)
+export async function listServicesForSalon(salonId, tenantId) {
+  if (!salonId && !tenantId) return { data: [], error: null };
+  let query = supabase.from('services').select('*').eq('active', true).order('name');
+  if (salonId && tenantId) {
+    query = query.or(`salon_id.eq.${salonId},tenant_id.eq.${tenantId}`);
+  } else if (salonId) {
+    query = query.eq('salon_id', salonId);
+  } else {
+    query = query.eq('tenant_id', tenantId);
+  }
+  const { data, error } = await query;
+  if (error) console.log('ERROR listServicesForSalon:', error);
+  // Deduplicate
+  const seen = new Set();
+  return { data: (data || []).filter(r => { if (seen.has(r.id)) return false; seen.add(r.id); return true; }), error };
 }
 
 export async function createService(data) {
