@@ -130,7 +130,7 @@ function BookingFlow({ services, staff, salon, preselectedStaff, favorites, togg
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {/* Step 0: Service */}
         {step === 0 && (services.length > 0 ? services.map(svc => (
-          <button key={svc.id} id={`service-${svc.id}`} onClick={() => { setSelected(c => ({ ...c, serviceId: svc.id })); setStep(1); }}
+          <button key={svc.id} id={`service-${svc.id}`} onClick={() => { setSelected(c => ({ ...c, serviceId: svc.id })); setStep(selected.staffName ? 2 : 1); }}
             className={`w-full text-left rounded-2xl p-4 border transition-all ${selected.serviceId === svc.id ? 'border-brand-500/60 bg-brand-500/10' : 'border-white/10 bg-white/3 hover:border-brand-500/30'}`}>
             <div className="flex justify-between items-center">
               <div>
@@ -185,6 +185,13 @@ function BookingFlow({ services, staff, salon, preselectedStaff, favorites, togg
           );
         }) : <div className="text-center py-10 text-gray-500 text-sm">No stylists available</div>)}
 
+        {step === 1 && selected.staffName && (
+          <button onClick={() => setStep(2)}
+            className="w-full bg-brand-500 text-white py-3 rounded-xl font-semibold mt-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            Continue with {selected.staffName}
+          </button>
+        )}
+
         {/* Step 2: Date + Time */}
         {step === 2 && (
           <div className="space-y-4">
@@ -211,7 +218,7 @@ function BookingFlow({ services, staff, salon, preselectedStaff, favorites, togg
                 <div className="text-xs text-gray-400 mb-2 font-medium">Select Time</div>
                 <div className="grid grid-cols-2 gap-2">
                   {SLOTS.map(slot => (
-                    <button key={slot} onClick={() => setSelected(c => ({ ...c, slot }))}
+                    <button key={slot} onClick={() => { setSelected(c => ({ ...c, slot })); setTimeout(() => setStep(3), 300); }}
                       className={`rounded-xl py-2.5 text-sm border transition-all ${selected.slot === slot ? 'border-brand-500 bg-brand-500/10 text-white font-medium' : 'border-white/10 text-gray-400 hover:border-white/20'}`}>
                       {slot}
                     </button>
@@ -644,7 +651,7 @@ export default function CustomerApp() {
               <>
                 {error && <div className="mx-4 mt-3 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-300">{error}</div>}
                 {bookingOpen
-                  ? <BookingFlow services={services} staff={staff} salon={salon}
+                  ? <BookingFlow key={`${preselectedStaff}-${bookingOpen}`} services={services} staff={staff} salon={salon}
                       preselectedStaff={preselectedStaff} favorites={favorites} toggleFavorite={toggleFavorite}
                       onClose={(didBook) => { setBookingOpen(false); setActiveTab('home'); }}
                       onConfirm={handleConfirmBooking} />
