@@ -43,7 +43,7 @@ export default function RoleLogin({ role = 'owner' }) {
   const [loading, setLoading] = useState(false);
   const demoMode = !isSupabaseConfigured;
 
-  const { startDemoSession, refreshProfile } = useAuth();
+  const { startDemoSession, refreshProfile, setPendingRole } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || content.redirect;
@@ -52,6 +52,9 @@ export default function RoleLogin({ role = 'owner' }) {
     setError('');
     setLoading(true);
     try {
+      // Set the intended role BEFORE calling Google auth so that
+      // onAuthStateChanged (which fires immediately) picks up the correct role
+      setPendingRole(role);
       const { data, error: authError } = await signInWithGoogle();
       if (authError) throw authError;
       await refreshProfile(role);
@@ -103,6 +106,7 @@ export default function RoleLogin({ role = 'owner' }) {
 
       const { error: verifyError } = await verifyFirebaseOtp(otp);
       if (verifyError) throw verifyError;
+      setPendingRole(role);
       await refreshProfile(role);
       // Always navigate to the role's correct home
       navigate(content.redirect, { replace: true });
@@ -131,6 +135,8 @@ export default function RoleLogin({ role = 'owner' }) {
         return;
       }
 
+      // Set role BEFORE Firebase auth so onAuthStateChanged picks it up
+      setPendingRole(role);
       const { data, error: authError } = await signInWithEmailFirebase(email, password);
       if (authError) throw authError;
 

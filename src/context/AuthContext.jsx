@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase, getUserProfile, createUserProfile, isSupabaseConfigured } from '../lib/supabase';
 import { auth, onAuthStateChanged, requestNotificationPermission, signOutFirebase } from '../lib/firebase';
 import { clearDemoSession, createDemoSession, readDemoSession, writeDemoSession } from '../lib/demoAuth';
@@ -10,6 +10,9 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  // Ref to persist the intended login role across async boundaries
+  // This prevents onAuthStateChanged from overwriting the role to 'customer'
+  const pendingRoleRef = useRef(null);
 
   const applyDemoSession = useCallback((session) => {
     setUser(session?.user ?? null);
@@ -111,7 +114,11 @@ export function AuthProvider({ children }) {
       if (firebaseUser) {
         clearDemoSession();
         setUser(firebaseUser);
-        await loadProfile(firebaseUser);
+        // Use the pending role if one was set by refreshProfile during login,
+        // so we don't default to 'customer' and break admin/owner logins
+        const roleForInit = pendingRoleRef.current;
+        pendingRoleRef.current = null; // consume it once
+        await loadProfile(firebaseUser, roleForInit);
       } else {
         const demo = readDemoSession();
         applyDemoSession(demo);
@@ -190,7 +197,14 @@ export function AuthProvider({ children }) {
     signOut,
     attachTenant,
     startDemoSession,
-    refreshProfile: (forcedRole = null) => (user ? loadProfile(user, forcedRole) : Promise.resolve()),
+    refreshProfile: (forcedRole = null) => {
+      // Store the role in the ref so onAuthStateChanged can pick it up
+      if (forcedRole) pendingRoleRef.current = forcedRole;
+      return user ? loadProfile(user, forcedRole) : Promise.resolve();
+    },
+    // Allow login pages to set the intended role BEFORE calling auth methods
+    // so onAuthStateChanged picks it up even if it fires before refreshProfile
+    setPendingRole: (r) => { pendingRoleRef.current = r; },
     defaultPathForRole,
   };
 

@@ -17,13 +17,14 @@ export default function CustomerLogin() {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { refreshProfile, startDemoSession } = useAuth();
+  const { refreshProfile, startDemoSession, setPendingRole } = useAuth();
   const from = location.state?.from?.pathname || '/app';
 
   async function handleGoogleLogin() {
     setError('');
     setLoading(true);
     try {
+      setPendingRole('customer');
       const { data, error: authError } = await signInWithGoogle();
       if (authError) throw authError;
       await refreshProfile('customer');
@@ -71,6 +72,7 @@ export default function CustomerLogin() {
       const { data: user, error: verifyError } = await verifyFirebaseOtp(otp);
       if (verifyError) throw verifyError;
       
+      setPendingRole('customer');
       // Wait for AuthContext to pick up the Firebase user and sync with Supabase
       await refreshProfile('customer');
       navigate(from, { replace: true });
