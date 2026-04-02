@@ -109,28 +109,39 @@ function BookingFlow({ services, staff, salon, preselectedStaff, favorites, togg
     onClose(true);
   }
 
-  const steps = ['Service', 'Stylist', 'Time', 'Confirm'];
+  // Dynamic steps: skip "Stylist" label when one is already pre-selected
+  const displaySteps = preselectedStaff
+    ? ['Service', 'Time', 'Confirm']
+    : ['Service', 'Stylist', 'Time', 'Confirm'];
+  // Map internal step index (0-3) to the display index for the shortened array
+  const displayStepIndex = preselectedStaff
+    ? (step === 0 ? 0 : step === 2 ? 1 : step === 3 ? 2 : 0)
+    : step;
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 shrink-0">
-        <button onClick={() => step === 0 ? onClose(false) : setStep(step - 1)} className="p-1.5 rounded-xl hover:bg-white/10 text-gray-400 hover:text-white">
+        <button onClick={() => {
+          if (step === 0) onClose(false);
+          else if (step === 2 && preselectedStaff) setStep(0); // skip back over stylist
+          else setStep(step - 1);
+        }} className="p-1.5 rounded-xl hover:bg-white/10 text-gray-400 hover:text-white">
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex-1">
           <div className="text-sm font-semibold text-white">New Booking</div>
-          <div className="text-xs text-gray-400">{steps[step]} — Step {step + 1} of 4</div>
+          <div className="text-xs text-gray-400">{displaySteps[displayStepIndex]} — Step {displayStepIndex + 1} of {displaySteps.length}</div>
         </div>
       </div>
       {/* Step progress */}
       <div className="flex gap-1 px-4 pt-2 pb-1 shrink-0">
-        {steps.map((_, i) => <div key={i} className={`flex-1 h-1 rounded-full transition-colors ${i <= step ? 'bg-brand-500' : 'bg-white/10'}`} />)}
+        {displaySteps.map((_, i) => <div key={i} className={`flex-1 h-1 rounded-full transition-colors ${i <= displayStepIndex ? 'bg-brand-500' : 'bg-white/10'}`} />)}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {/* Step 0: Service */}
         {step === 0 && (services.length > 0 ? services.map(svc => (
-          <button key={svc.id} id={`service-${svc.id}`} onClick={() => { setSelected(c => ({ ...c, serviceId: svc.id })); setStep(selected.staffName ? 2 : 1); }}
+          <button key={svc.id} id={`service-${svc.id}`} onClick={() => { setSelected(c => ({ ...c, serviceId: svc.id })); setStep(preselectedStaff ? 2 : 1); }}
             className={`w-full text-left rounded-2xl p-4 border transition-all ${selected.serviceId === svc.id ? 'border-brand-500/60 bg-brand-500/10' : 'border-white/10 bg-white/3 hover:border-brand-500/30'}`}>
             <div className="flex justify-between items-center">
               <div>
@@ -195,6 +206,18 @@ function BookingFlow({ services, staff, salon, preselectedStaff, favorites, togg
         {/* Step 2: Date + Time */}
         {step === 2 && (
           <div className="space-y-4">
+            {/* Show pre-selected stylist banner with option to change */}
+            {preselectedStaff && (
+              <div className="flex items-center gap-2.5 p-3 rounded-xl bg-brand-500/10 border border-brand-500/20">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-white font-bold text-sm">{preselectedStaff.charAt(0)}</div>
+                <div className="flex-1">
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wider">Selected Stylist</div>
+                  <div className="text-sm font-semibold text-white">{preselectedStaff}</div>
+                </div>
+                <button onClick={() => { setSelected(c => ({ ...c, staffName: '' })); setStep(1); }}
+                  className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded-lg border border-white/10 hover:border-white/20 transition-colors">Change</button>
+              </div>
+            )}
             <div>
               <div className="text-xs text-gray-400 mb-2 font-medium">Select Date</div>
               <input type="date" min={today} value={selected.date}
