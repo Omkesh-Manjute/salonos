@@ -140,7 +140,7 @@ function Hero() {
           ].map((s) => (
             <div key={s.label} className="glass rounded-xl p-4 text-center border border-white/5 hover:border-brand-500/20 transition-colors">
               <div className="text-2xl font-bold gradient-text">{s.value}<span className="text-base font-medium">{s.unit}</span></div>
-              <div className="text-xs text-gray-400 mt-1">{s.label}</div>
+              <div className="text-xs text-gray-300 font-medium mt-1 uppercase tracking-wider">{s.label}</div>
             </div>
           ))}
         </div>
@@ -202,12 +202,12 @@ function ValueSection() {
                 ].map(s => (
                   <div key={s.label} className="bg-white/5 rounded-2xl p-5 text-center border border-white/5">
                     <div className={`text-3xl font-black mb-1 ${s.color}`}>{s.val}</div>
-                    <div className="text-xs text-gray-400">{s.label}</div>
+                    <div className="text-xs text-gray-100 font-bold uppercase tracking-tight">{s.label}</div>
                   </div>
                 ))}
               </div>
               <div className="bg-gradient-to-r from-brand-600/20 to-gold-500/10 rounded-2xl p-4 border border-brand-500/20 text-center">
-                <div className="text-sm text-gray-300 font-medium">
+                <div className="text-sm text-gray-100 font-bold italic">
                   "Trusted by modern salons to deliver better customer experience"
                 </div>
               </div>
@@ -302,8 +302,8 @@ function Features() {
               <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${f.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
                 <f.icon className="w-5 h-5 text-white" />
               </div>
-              <h3 className="font-semibold text-white mb-2">{f.title}</h3>
-              <p className="text-sm text-gray-400 leading-relaxed">{f.desc}</p>
+              <h3 className="font-bold text-white mb-2">{f.title}</h3>
+              <p className="text-sm text-gray-100 font-medium leading-relaxed opacity-80">{f.desc}</p>
             </div>
           ))}
         </div>
