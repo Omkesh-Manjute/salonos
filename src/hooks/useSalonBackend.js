@@ -19,6 +19,7 @@ import {
   listStaffByOwner,
   listStaffForSalon,
   listUsersByTenant,
+  listUsersByIds,
   resequenceQueue,
   subscribeToTenantTable,
   supabase,
@@ -387,6 +388,58 @@ export function useOwnerDashboardData(profile) {
       
       const customerMap = new Map();
 
+      // Start with registered users for this tenant
+      usersData.forEach(u => {
+        const key = u.id;
+        customerMap.set(key, {
+          id: u.id,
+          name: u.name,
+          email: u.email || '',
+          phone: u.phone || '',
+          avatar_url: u.avatar_url || '',
+          city: u.city || '',
+          visits: u.metadata?.visits || 0,
+          spend: u.metadata?.spend || 0,
+          last_visit: u.metadata?.last_visit || u.created_at,
+          history: [],
+          todayActivity: null,
+          role: 'customer'
+        });
+      });
+
+      // Also find all unique user_ids from bookings/queue to fetch profiles even if they aren't in usersData
+      const externalUserIds = Array.from(new Set([
+        ...queueData.map(q => q.user_id),
+        ...bookingsData.map(b => b.user_id)
+      ].filter(Boolean)));
+
+      const { data: externalUsers } = await listUsersByIds(externalUserIds);
+      (externalUsers || []).forEach(u => {
+        if (!customerMap.has(u.id)) {
+          customerMap.set(u.id, {
+            id: u.id,
+            name: u.name,
+            email: u.email || '',
+            phone: u.phone || '',
+            avatar_url: u.avatar_url || '',
+            city: u.city || '',
+            visits: 0,
+            spend: 0,
+            last_visit: u.created_at,
+            history: [],
+            todayActivity: null,
+            role: 'customer'
+          });
+        } else {
+          // Update existing with potential new info (picture/city)
+          const c = customerMap.get(u.id);
+          c.avatar_url = u.avatar_url || c.avatar_url;
+          c.city = u.city || c.city;
+          c.email = u.email || c.email;
+          c.name = u.name || c.name; // User's account name is source of truth
+        }
+      });
+
       // Helper to add activity to customer history
       const addActivity = (key, item, type) => {
         const c = customerMap.get(key);
@@ -413,28 +466,8 @@ export function useOwnerDashboardData(profile) {
         }
       };
 
-      // Start with registered users
-      usersData.forEach(u => {
-        const key = u.id; // Best unique key
-        customerMap.set(key, {
-          id: u.id,
-          name: u.name,
-          email: u.email || '',
-          phone: u.phone || '',
-          avatar_url: u.avatar_url || '',
-          city: u.city || '',
-          visits: u.metadata?.visits || 0,
-          spend: u.metadata?.spend || 0,
-          last_visit: u.metadata?.last_visit || u.created_at,
-          history: [],
-          todayActivity: null,
-          role: 'customer'
-        });
-      });
-
-      // Add walk-ins and associate data
+      // Now map all activity to these profiles
       [...queueData, ...bookingsData].forEach(item => {
-        // Find by user_id first, then fallback to phone or name
         const key = item.user_id || item.phone || item.customer_phone || item.customer_name;
         
         if (!customerMap.has(key)) {

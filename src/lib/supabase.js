@@ -318,6 +318,13 @@ export async function listUsersByTenant(tenantId, role) {
   return { data, error };
 }
 
+export async function listUsersByIds(ids) {
+  if (!ids || ids.length === 0) return { data: [], error: null };
+  const { data, error } = await supabase.from('users').select('*').in('id', ids);
+  if (error) console.log("ERROR listUsersByIds:", error);
+  return { data, error };
+}
+
 export async function upsertSubscription(data) {
   const { data: result, error } = await supabase.from('subscriptions').upsert(data, { onConflict: 'tenant_id' }).select().single();
   if (error) console.log("ERROR:", error);
