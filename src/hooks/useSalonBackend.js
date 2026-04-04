@@ -468,7 +468,11 @@ export function useOwnerDashboardData(profile) {
       };
 
       // Now map all activity to these profiles
+      const processedActivityIds = new Set();
       [...queueData, ...bookingsData].forEach(item => {
+        if (!item.id || processedActivityIds.has(item.id)) return;
+        processedActivityIds.add(item.id);
+
         const rawKey = item.user_id || item.phone || item.customer_phone || item.customer_name || 'unknown';
         const key = rawKey.toLowerCase().trim();
 
@@ -531,7 +535,7 @@ export function useOwnerDashboardData(profile) {
       setState({
         loading: false,
         services: servicesRes.data || [],
-        customers: Array.from(customerMap.values()),
+        customers: Array.from(new Set(customerMap.values())),
         bookings: bookingsData,
         queue: sortedQueue,
         staff,
