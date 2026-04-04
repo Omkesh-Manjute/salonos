@@ -469,13 +469,14 @@ export function useOwnerDashboardData(profile) {
 
       // Now map all activity to these profiles
       [...queueData, ...bookingsData].forEach(item => {
-        const key = item.user_id || item.phone || item.customer_phone || item.customer_name;
+        const rawKey = item.user_id || item.phone || item.customer_phone || item.customer_name || 'unknown';
+        const key = rawKey.toLowerCase().trim();
         
         if (!customerMap.has(key)) {
           customerMap.set(key, {
             id: key,
-            name: item.customer_name,
-            phone: item.phone || item.customer_phone || 'Walk-in',
+            name: item.customer_name || item.name || 'Customer',
+            phone: item.phone || item.customer_phone || '',
             email: '',
             visits: 0,
             spend: 0,
