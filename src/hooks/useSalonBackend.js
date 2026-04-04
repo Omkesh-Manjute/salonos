@@ -178,7 +178,7 @@ export function useCustomerAppData(profile) {
 
       const [staffRes, servicesRes, bookingsRes, queueRes, notificationsRes] = await Promise.all([
         listStaffForSalon(activeSalonId, salon?.owner_id),
-        listServicesForSalon(activeSalonId, salon?.tenant_id),
+        listServicesForSalon(activeSalonId, salon?.tenant_id, salon?.owner_id),
         listBookings({ salonId: activeSalonId, tenantId: salon?.tenant_id, userId }),
         getQueueBySalonId(activeSalonId),
         listNotifications(userId),
@@ -320,7 +320,7 @@ export function useOwnerDashboardData(profile) {
       // 2. Fetch all data with robust OR queries (handles legacy data without salon_id)
       const [staffRes, servicesRes, customersRes, bookingsRes, queueRes] = await Promise.all([
         listStaffForSalon(salonId, ownerId),
-        listServicesForSalon(salonId, salon.tenant_id),
+        listServicesForSalon(salonId, salon.tenant_id, ownerId),
         listUsersByTenant(salon.tenant_id || '', 'customer'),
         listBookings({ salonId, tenantId: salon.tenant_id }),
         getQueueBySalonId(salonId),
@@ -389,7 +389,16 @@ export function useOwnerDashboardData(profile) {
     if (!isSupabaseConfigured) return { error: null };
     const salonId = state.salon?.id;
     const tenantId = state.salon?.tenant_id;
-    const { data, error } = await createService({ salon_id: salonId, tenant_id: tenantId, name, price: Number(price), category: category || 'General', duration_minutes: duration_minutes || 30, active: true });
+    const { data, error } = await createService({ 
+      salon_id: salonId, 
+      tenant_id: tenantId, 
+      owner_id: ownerId,
+      name, 
+      price: Number(price), 
+      category: category || 'General', 
+      duration_minutes: duration_minutes || 30, 
+      active: true 
+    });
     if (!error) await load();
     return { data, error };
   }, [load, state.salon]);

@@ -111,17 +111,23 @@ export async function listServicesBySalonId(salonId) {
   return { data, error };
 }
 
-// Robust: finds services by salon_id OR tenant_id (fallback for legacy data)
-export async function listServicesForSalon(salonId, tenantId) {
-  if (!salonId && !tenantId) return { data: [], error: null };
+// Robust: finds services by salon_id OR tenant_id OR owner_id (fallback for legacy data)
+export async function listServicesForSalon(salonId, tenantId, ownerId) {
+  if (!salonId && !tenantId && !ownerId) return { data: [], error: null };
   let query = supabase.from('services').select('*').eq('active', true);
   
-  if (salonId && tenantId) {
+  if (salonId && tenantId && ownerId) {
+    query = query.or(`salon_id.eq.${salonId},tenant_id.eq.${tenantId},owner_id.eq.${ownerId}`);
+  } else if (salonId && ownerId) {
+    query = query.or(`salon_id.eq.${salonId},owner_id.eq.${ownerId}`);
+  } else if (salonId && tenantId) {
     query = query.or(`salon_id.eq.${salonId},tenant_id.eq.${tenantId}`);
   } else if (salonId) {
     query = query.eq('salon_id', salonId);
   } else if (tenantId) {
     query = query.eq('tenant_id', tenantId);
+  } else if (ownerId) {
+    query = query.eq('owner_id', ownerId);
   } else {
     return { data: [], error: null };
   }
@@ -134,6 +140,7 @@ export async function listServicesForSalon(salonId, tenantId) {
 }
 
 export async function createService(data) {
+  // Ensure owner_id is passed if available
   const { data: result, error } = await supabase.from('services').insert(data).select().single();
   if (error) console.log("ERROR createService:", error);
   return { data: result, error };
