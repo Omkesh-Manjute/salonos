@@ -552,34 +552,135 @@ function SettingsPage({ salon, onSave }) {
 }
 
 function CRMPage({ customers }) {
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Customer CRM</h1>
-          <p className="text-gray-400 text-sm">Customer records for your salon</p>
+    <div className="flex flex-col lg:flex-row gap-6 h-full min-h-[600px]">
+      {/* Left: Customer List */}
+      <div className={`flex-1 space-y-6 ${selectedCustomer ? 'hidden lg:block' : ''}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Customer CRM</h1>
+            <p className="text-gray-400 text-sm">Customer records for your salon</p>
+          </div>
         </div>
-      </div>
-      <div className="glass rounded-2xl border border-white/5 overflow-hidden">
-        <div className="hidden lg:grid grid-cols-[1fr_140px_100px_100px_120px] gap-3 px-5 py-3 border-b border-white/10 text-xs text-gray-500 font-medium uppercase tracking-wider">
-          <span>Customer</span><span>Contact</span><span>Visits</span><span>Points</span><span>Spend</span>
-        </div>
-        <div className="divide-y divide-white/5">
-          {customers.map((customer) => (
-            <div key={customer.id} className="grid grid-cols-1 lg:grid-cols-[1fr_140px_100px_100px_120px] gap-3 items-center px-5 py-4 hover:bg-white/3">
-              <div>
-                <div className="text-sm font-medium text-white">{customer.name}</div>
-                <div className="text-xs text-gray-500">Last visit · {new Date(customer.last_visit || customer.created_at).toLocaleDateString()}</div>
+
+        <div className="glass rounded-2xl border border-white/5 overflow-hidden">
+          <div className="hidden lg:grid grid-cols-[1fr_140px_100px_120px] gap-3 px-5 py-3 border-b border-white/10 text-xs text-gray-500 font-medium uppercase tracking-wider">
+            <span>Customer</span><span>Contact</span><span>Visits</span><span>Spend</span>
+          </div>
+          <div className="divide-y divide-white/5">
+            {customers.map((customer) => (
+              <div 
+                key={customer.id} 
+                onClick={() => setSelectedCustomer(customer)}
+                className={`grid grid-cols-1 lg:grid-cols-[1fr_140px_100px_120px] gap-3 items-center px-5 py-4 cursor-pointer transition-all hover:bg-white/5 ${selectedCustomer?.id === customer.id ? 'bg-brand-500/10 border-l-2 border-brand-500' : ''}`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-white font-bold overflow-hidden border border-white/5">
+                    {customer.avatar_url ? <img src={customer.avatar_url} className="w-full h-full object-cover" /> : customer.name?.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-white">{customer.name}</span>
+                      {customer.todayActivity && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-brand-500 text-white uppercase tracking-tighter animate-pulse">Today</span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-gray-500">
+                      {customer.visits > 0 
+                        ? `Last visit · ${new Date(customer.last_visit).toLocaleDateString()}` 
+                        : 'New Customer'}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-400 truncate">{customer.phone || customer.email || '—'}</div>
+                <div className="text-sm text-white font-medium pl-4">{customer.visits || 0}</div>
+                <div className="text-sm text-brand-300 font-bold">{formatCurrency(customer.spend || 0)}</div>
               </div>
-              <div className="text-sm text-gray-300">{customer.phone || customer.email || '—'}</div>
-              <div className="text-sm text-white">{customer.visits || 0}</div>
-              <div className="text-sm text-brand-300">{customer.loyalty_points || 0}</div>
-              <div className="text-sm text-white">{formatCurrency(customer.spend || 0)}</div>
-            </div>
-          ))}
-          {customers.length === 0 && <div className="py-12 text-center text-gray-500 text-sm">No customers yet</div>}
+            ))}
+            {customers.length === 0 && <div className="py-12 text-center text-gray-500 text-sm">No customers yet</div>}
+          </div>
         </div>
       </div>
+
+      {/* Right: Customer Detail View */}
+      {selectedCustomer && (
+        <div className="w-full lg:w-[400px] flex flex-col gap-4 animate-in slide-in-from-right-4 duration-300">
+          <div className="lg:hidden mb-2">
+            <button onClick={() => setSelectedCustomer(null)} className="flex items-center gap-2 text-gray-400 text-sm"><ChevronLeft className="w-4 h-4" /> Back to list</button>
+          </div>
+          
+          <div className="glass rounded-2xl border border-white/10 overflow-hidden flex flex-col h-full sticky top-24">
+            {/* Header */}
+            <div className="p-6 text-center border-b border-white/5 bg-white/3">
+              <div className="w-20 h-20 rounded-3xl bg-brand-500/20 text-brand-400 mx-auto mb-4 flex items-center justify-center text-3xl font-bold border border-brand-500/20 overflow-hidden">
+                {selectedCustomer.avatar_url ? <img src={selectedCustomer.avatar_url} className="w-full h-full object-cover" /> : selectedCustomer.name?.charAt(0)}
+              </div>
+              <h2 className="text-xl font-bold text-white">{selectedCustomer.name}</h2>
+              <div className="text-sm text-gray-400 mt-1">{selectedCustomer.phone || 'No phone'}</div>
+              {selectedCustomer.email && <div className="text-xs text-gray-500 mt-0.5">{selectedCustomer.email}</div>}
+              {selectedCustomer.city && <div className="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1"><Store className="w-3 h-3" /> {selectedCustomer.city}</div>}
+              
+              <div className="grid grid-cols-2 gap-3 mt-6">
+                <div className="bg-white/5 p-3 rounded-xl border border-white/5">
+                  <div className="text-xl font-bold text-white">{selectedCustomer.visits}</div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-widest">Total Visits</div>
+                </div>
+                <div className="bg-white/5 p-3 rounded-xl border border-white/5">
+                  <div className="text-xl font-bold text-brand-400">{formatCurrency(selectedCustomer.spend)}</div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-widest">Total Spend</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Today's Activity */}
+            {selectedCustomer.todayActivity && (
+              <div className="p-4 bg-brand-500/10 border-b border-brand-500/20">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold text-brand-400 uppercase tracking-wider">Today's Activity</span>
+                  <span className="text-[10px] bg-brand-500 text-white px-1.5 py-0.5 rounded font-bold">ACTIVE</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-bold text-white">{selectedCustomer.todayActivity.service}</div>
+                    <div className="text-xs text-gray-400 capitalize">{selectedCustomer.todayActivity.status.replace('_', ' ')}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs font-bold text-white">{selectedCustomer.todayActivity.time}</div>
+                    <div className="text-[10px] text-gray-500">Service Time</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Visit History */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Visit History</h3>
+              <div className="space-y-3">
+                {selectedCustomer.history.map((h, i) => (
+                  <div key={h.id + i} className="flex gap-3 relative pb-4 last:pb-0">
+                    {i !== selectedCustomer.history.length - 1 && <div className="absolute left-[11px] top-7 bottom-0 w-px bg-white/5" />}
+                    <div className={`w-6 h-6 rounded-lg ${h.status === 'completed' || h.status === 'done' ? 'bg-green-500/20 text-green-500' : 'bg-white/5 text-gray-500'} flex items-center justify-center flex-shrink-0 z-10 border border-white/5`}>
+                      <CheckCircle className="w-3 h-3" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">{new Date(h.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        <span className="text-xs font-medium text-gray-300">{formatCurrency(h.price)}</span>
+                      </div>
+                      <div className="text-xs text-gray-400 mt-0.5">{h.service}</div>
+                      <div className={`text-[10px] mt-1 capitalize font-medium ${h.status === 'completed' || h.status === 'done' ? 'text-green-500' : 'text-gray-500'}`}>
+                        {h.status.replace('_', ' ')}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {selectedCustomer.history.length === 0 && <p className="text-center text-xs text-gray-500 py-8">No visit history found.</p>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

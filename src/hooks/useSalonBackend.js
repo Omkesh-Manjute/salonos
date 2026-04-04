@@ -383,52 +383,89 @@ export function useOwnerDashboardData(profile) {
       const queueData = queueRes.data || [];
       const bookingsData = bookingsRes.data || [];
       const usersData = customersRes.data || [];
+      const todayDate = new Date().toLocaleDateString('en-CA');
       
       const customerMap = new Map();
 
+      // Helper to add activity to customer history
+      const addActivity = (key, item, type) => {
+        const c = customerMap.get(key);
+        if (!c) return;
+        
+        const date = item.booking_time || item.created_at;
+        const isToday = date?.startsWith(todayDate);
+        
+        c.history.push({
+          id: item.id,
+          date,
+          service: item.service_name || 'Service',
+          price: Number(item.price || item.total_price || 0),
+          status: item.status,
+          type
+        });
+
+        if (isToday && (item.status !== 'completed' && item.status !== 'done' && item.status !== 'cancelled')) {
+          c.todayActivity = {
+            time: item.booking_time ? new Date(item.booking_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'In Queue',
+            status: item.status,
+            service: item.service_name
+          };
+        }
+      };
+
       // Start with registered users
       usersData.forEach(u => {
-        const key = u.phone || u.id;
+        const key = u.id; // Best unique key
         customerMap.set(key, {
           id: u.id,
           name: u.name,
-          phone: u.phone || 'Reg. User',
+          email: u.email || '',
+          phone: u.phone || '',
+          avatar_url: u.avatar_url || '',
+          city: u.city || '',
           visits: u.metadata?.visits || 0,
           spend: u.metadata?.spend || 0,
           last_visit: u.metadata?.last_visit || u.created_at,
+          history: [],
+          todayActivity: null,
           role: 'customer'
         });
       });
 
-      // Add walk-ins from queue (might not be in users table)
-      queueData.forEach(q => {
-        const key = q.phone || q.customer_name;
+      // Add walk-ins and associate data
+      [...queueData, ...bookingsData].forEach(item => {
+        // Find by user_id first, then fallback to phone or name
+        const key = item.user_id || item.phone || item.customer_phone || item.customer_name;
+        
         if (!customerMap.has(key)) {
           customerMap.set(key, {
-            id: q.user_id || `walkin-${q.id}`,
-            name: q.customer_name,
-            phone: q.phone || 'Walk-in',
-            visits: 1,
+            id: key,
+            name: item.customer_name,
+            phone: item.phone || item.customer_phone || 'Walk-in',
+            email: '',
+            visits: 0,
             spend: 0,
-            last_visit: q.created_at,
+            last_visit: item.created_at || item.booking_time,
+            history: [],
+            todayActivity: null,
             role: 'walkin'
           });
         }
+        
+        addActivity(key, item, item.is_appointment ? 'appointment' : 'queue');
       });
 
-      // Add walk-ins from bookings
-      bookingsData.forEach(b => {
-        const key = b.customer_phone || b.customer_name;
-        if (!customerMap.has(key)) {
-          customerMap.set(key, {
-            id: b.user_id || `booking-${b.id}`,
-            name: b.customer_name,
-            phone: b.customer_phone || 'Offline',
-            visits: 1,
-            spend: b.price || 0,
-            last_visit: b.booking_time,
-            role: 'offline'
-          });
+      // Finalize metrics for each customer
+      customerMap.forEach(c => {
+        // Sort history by date descending
+        c.history.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        // Calculate spend and visits from history
+        const completedServices = c.history.filter(h => h.status === 'completed' || h.status === 'done');
+        c.spend = completedServices.reduce((sum, h) => sum + h.price, 0);
+        c.visits = completedServices.length;
+        if (completedServices.length > 0) {
+          c.last_visit = completedServices[0].date;
         }
       });
 
