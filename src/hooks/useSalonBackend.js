@@ -194,10 +194,10 @@ export function useCustomerAppData(profile) {
         let status = 'available';
         const isWorking = queueData.some(q => q.staff_name === item.name && q.status === 'in_progress');
         const isBooked = queueData.some(q => q.staff_name === item.name && (q.status === 'next' || q.status === 'waiting'));
-        
+
         if (isWorking) status = 'working';
         else if (isBooked) status = 'booked';
-        
+
         return {
           id: item.id,
           name: item.name,
@@ -347,7 +347,7 @@ export function useOwnerDashboardData(profile) {
       // 2. Determine active salon (fallback to first one)
       const currentSalonId = activeSalonId || allSalons[0].id;
       const salon = allSalons.find(s => s.id === currentSalonId) || allSalons[0];
-      
+
       // Update local storage for persistence
       if (salon.id !== activeSalonId) {
         localStorage.setItem('owner_active_salon_id', salon.id);
@@ -386,7 +386,7 @@ export function useOwnerDashboardData(profile) {
       const bookingsData = bookingsRes.data || [];
       const usersData = customersRes.data || [];
       const todayDate = new Date().toLocaleDateString('en-CA');
-      
+
       const customerMap = new Map();
 
       // Start with registered users for this tenant
@@ -445,10 +445,10 @@ export function useOwnerDashboardData(profile) {
       const addActivity = (key, item, type) => {
         const c = customerMap.get(key);
         if (!c) return;
-        
+
         const date = item.booking_time || item.created_at;
         const isToday = date?.startsWith(todayDate);
-        
+
         c.history.push({
           id: item.id,
           date,
@@ -471,7 +471,7 @@ export function useOwnerDashboardData(profile) {
       [...queueData, ...bookingsData].forEach(item => {
         const rawKey = item.user_id || item.phone || item.customer_phone || item.customer_name || 'unknown';
         const key = rawKey.toLowerCase().trim();
-        
+
         if (!customerMap.has(key)) {
           customerMap.set(key, {
             id: key,
@@ -486,7 +486,7 @@ export function useOwnerDashboardData(profile) {
             role: 'walkin'
           });
         }
-        
+
         addActivity(key, item, item.is_appointment ? 'appointment' : 'queue');
       });
 
@@ -494,7 +494,7 @@ export function useOwnerDashboardData(profile) {
       customerMap.forEach(c => {
         // Sort history by date descending
         c.history.sort((a, b) => new Date(b.date) - new Date(a.date));
-        
+
         // Calculate spend and visits from history
         const completedServices = c.history.filter(h => h.status === 'completed' || h.status === 'done');
         c.spend = completedServices.reduce((sum, h) => sum + h.price, 0);
@@ -520,7 +520,7 @@ export function useOwnerDashboardData(profile) {
         }));
 
       const combinedQueue = [...(queueRes.data || []), ...todayBookings];
-      
+
       // Sort: in_progress > next > waiting > booked > done
       const sortedQueue = combinedQueue.sort((a, b) => {
         const order = { 'in_progress': 1, 'next': 2, 'waiting': 3, 'booked': 4, 'done': 5 };
@@ -580,15 +580,15 @@ export function useOwnerDashboardData(profile) {
     if (!isSupabaseConfigured) return { error: null };
     const salonId = state.salon?.id;
     const tenantId = state.salon?.tenant_id;
-    const { data, error } = await createService({ 
-      salon_id: salonId, 
-      tenant_id: tenantId, 
+    const { data, error } = await createService({
+      salon_id: salonId,
+      tenant_id: tenantId,
       owner_id: profile?.id,
-      name, 
-      price: Number(price), 
-      category: category || 'General', 
-      duration_minutes: duration_minutes || 30, 
-      active: true 
+      name,
+      price: Number(price),
+      category: category || 'General',
+      duration_minutes: duration_minutes || 30,
+      active: true
     });
     if (!error) await load();
     return { data, error };
@@ -638,7 +638,7 @@ export function useOwnerDashboardData(profile) {
     const ownerId = profile?.id;
     if (!isSupabaseConfigured || !ownerId) return sampleState.callNext();
     const salonId = state.salon?.id;
-    
+
     // Find current active person and complete them
     const currentActive = state.queue.find((item) => item.status === 'in_progress');
     if (currentActive) {
@@ -650,7 +650,7 @@ export function useOwnerDashboardData(profile) {
     }
 
     // Find the next person to call (next > waiting > booked appointment)
-    const nextEntry = state.queue.find((item) => item.status === 'next') 
+    const nextEntry = state.queue.find((item) => item.status === 'next')
       || state.queue.find((item) => item.status === 'waiting')
       || state.queue.find((item) => item.status === 'booked');
 
@@ -660,19 +660,19 @@ export function useOwnerDashboardData(profile) {
       } else {
         await updateQueueEntry(nextEntry.id, { status: 'in_progress' });
       }
-      
+
       if (nextEntry.user_id) {
-        await sendNotification({ 
-          userId: nextEntry.user_id, 
-          tenantId: state.salon?.tenant_id, 
-          type: 'your_turn_now', 
-          message: `${nextEntry.customer_name}, your service is starting now.` 
+        await sendNotification({
+          userId: nextEntry.user_id,
+          tenantId: state.salon?.tenant_id,
+          type: 'your_turn_now',
+          message: `${nextEntry.customer_name}, your service is starting now.`
         });
       }
     }
 
     // Mark the following person as 'next'
-    const following = state.queue.filter((item) => 
+    const following = state.queue.filter((item) =>
       (item.status === 'waiting' || item.status === 'booked') && item.id !== nextEntry?.id
     ).sort((a, b) => {
       const order = { 'waiting': 1, 'booked': 2 };
@@ -725,7 +725,7 @@ export function useOwnerDashboardData(profile) {
 
   const recordTransaction = useCallback(async (customerId, amount, serviceName = 'Manual Entry') => {
     if (!isSupabaseConfigured || !state.salon) return { error: 'Salon not loaded' };
-    
+
     // Find customer within the latest state to get correct metadata
     const c = state.customers.find(curr => curr.id === customerId);
     if (!c) return { error: 'Customer not found' };
@@ -754,7 +754,7 @@ export function useOwnerDashboardData(profile) {
     const offQueue = subscribeToTenantTable({ table: 'queue', salonId, onChange: load });
     const offStaff = subscribeToTenantTable({ table: 'staff', salonId, onChange: load });
     return () => { offQueue?.(); offStaff?.(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load, profile?.id]);
 
   const current = !isSupabaseConfigured ? sampleState : state;
