@@ -187,10 +187,12 @@ export async function createBooking(booking) {
   return { data, error };
 }
 
-export async function listBookings({ tenantId, userId, ownerId, salonId, limit } = {}) {
-  let query = supabase.from('bookings').select('*').order('booking_time', { ascending: true });
+export async function listBookings({ tenantId, userId, ownerId, limit, salonId }) {
+  let query = supabase.from('bookings').select('*').order('booking_time', { ascending: false });
   
-  if (salonId && tenantId) {
+  if (salonId && tenantId && ownerId) {
+    query = query.or(`salon_id.eq.${salonId},tenant_id.eq.${tenantId},owner_id.eq.${ownerId}`);
+  } else if (salonId && tenantId) {
     query = query.or(`salon_id.eq.${salonId},tenant_id.eq.${tenantId}`);
   } else if (salonId) {
     query = query.eq('salon_id', salonId);
@@ -211,6 +213,21 @@ export async function listBookings({ tenantId, userId, ownerId, salonId, limit }
     return { data: (data || []).filter(r => { if (seen.has(r.id)) return false; seen.add(r.id); return true; }), error };
   }
   
+  return { data, error };
+}
+
+export async function createManualBooking(bookingData) {
+  const { data, error } = await supabase.from('bookings').insert({
+    ...bookingData,
+    status: 'completed',
+    payment_status: 'paid',
+    booking_type: 'slot',
+    created_at: new Date().toISOString(),
+    booking_time: new Date().toISOString(),
+    completed_at: new Date().toISOString()
+  }).select().single();
+  
+  if (error) console.log("ERROR createManualBooking:", error);
   return { data, error };
 }
 

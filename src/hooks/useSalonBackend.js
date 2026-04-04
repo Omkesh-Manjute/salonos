@@ -4,6 +4,7 @@ import {
   addToQueue,
   createBookingWithQueue,
   createService,
+  createManualBooking,
   deleteService,
   getQueueBySalonId,
   getQueueByTenant,
@@ -452,7 +453,7 @@ export function useOwnerDashboardData(profile) {
           id: item.id,
           date,
           service: item.service_name || 'Service',
-          price: Number(item.price || item.total_price || 0),
+          price: Number(item.total_amount || 0),
           status: item.status,
           type
         });

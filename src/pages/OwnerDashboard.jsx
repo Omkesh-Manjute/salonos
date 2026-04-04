@@ -553,12 +553,25 @@ function SettingsPage({ salon, onSave }) {
   );
 }
 
-function CRMPage({ customers }) {
+function CRMPage({ customers, recordTransaction }) {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [amount, setAmount] = useState('');
+  const [recording, setRecording] = useState(false);
+
+  const handleRecord = async () => {
+    if (!amount || isNaN(amount) || Number(amount) <= 0) return;
+    setRecording(true);
+    const res = await recordTransaction(selectedCustomer.id, amount);
+    if (!res.error) {
+      setAmount('');
+    }
+    setRecording(false);
+  };
+
+  const currentSelected = selectedCustomer ? (customers.find(c => c.id === selectedCustomer.id) || selectedCustomer) : null;
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full min-h-[600px]">
-      {/* Left: Customer List */}
       <div className={`flex-1 space-y-6 ${selectedCustomer ? 'hidden lg:block' : ''}`}>
         <div className="flex items-center justify-between">
           <div>
@@ -600,68 +613,93 @@ function CRMPage({ customers }) {
                 <div className="text-sm text-brand-300 font-bold">{formatCurrency(customer.spend || 0)}</div>
               </div>
             ))}
-            {customers.length === 0 && <div className="py-12 text-center text-gray-500 text-sm">No customers yet</div>}
+            {customers.length === 0 && <div className="text-center py-20 text-gray-500">No customer records yet.</div>}
           </div>
         </div>
       </div>
 
-      {/* Right: Customer Detail View */}
-      {selectedCustomer && (
-        <div className="w-full lg:w-[400px] flex flex-col gap-4 animate-in slide-in-from-right-4 duration-300">
-          <div className="lg:hidden mb-2">
-            <button onClick={() => setSelectedCustomer(null)} className="flex items-center gap-2 text-gray-400 text-sm"><ChevronLeft className="w-4 h-4" /> Back to list</button>
-          </div>
-          
-          <div className="glass rounded-2xl border border-white/10 overflow-hidden flex flex-col h-full sticky top-24">
-            {/* Header */}
-            <div className="p-6 text-center border-b border-white/5 bg-white/3">
-              <div className="w-20 h-20 rounded-3xl bg-brand-500/20 text-brand-400 mx-auto mb-4 flex items-center justify-center text-3xl font-bold border border-brand-500/20 overflow-hidden">
-                {selectedCustomer.avatar_url ? <img src={selectedCustomer.avatar_url} className="w-full h-full object-cover" /> : selectedCustomer.name?.charAt(0)}
+      {currentSelected && (
+        <div className="w-full lg:w-[380px] space-y-6">
+          <div className="glass rounded-[2rem] border border-white/10 overflow-hidden flex flex-col max-h-[750px] sticky top-6 shadow-2xl shadow-brand-500/5">
+            <div className="p-6 bg-gradient-to-br from-brand-600/20 to-transparent border-b border-white/10">
+              <div className="flex items-center justify-between mb-6">
+                <button onClick={() => setSelectedCustomer(null)} className="p-2 rounded-xl bg-white/5 text-gray-400 hover:text-white lg:hidden"><ChevronLeft className="w-5 h-5" /></button>
+                <div className="flex gap-2">
+                  <button className="p-2.2 rounded-xl bg-white/5 text-gray-400 hover:text-white transition-colors"><MoreVertical className="w-4.5 h-4.5" /></button>
+                </div>
               </div>
-              <h2 className="text-xl font-bold text-white">{selectedCustomer.name}</h2>
-              <div className="text-sm text-gray-400 mt-1">{selectedCustomer.phone || 'No phone'}</div>
-              {selectedCustomer.email && <div className="text-xs text-gray-500 mt-0.5">{selectedCustomer.email}</div>}
-              {selectedCustomer.city && <div className="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1"><Store className="w-3 h-3" /> {selectedCustomer.city}</div>}
-              
-              <div className="grid grid-cols-2 gap-3 mt-6">
-                <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                  <div className="text-xl font-bold text-white">{selectedCustomer.visits}</div>
-                  <div className="text-[10px] text-gray-500 uppercase tracking-widest">Total Visits</div>
+
+              <div className="flex flex-col items-center text-center">
+                <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-white text-3xl font-bold shadow-xl shadow-brand-500/20 mb-4 overflow-hidden border-2 border-white/10">
+                  {currentSelected.avatar_url ? <img src={currentSelected.avatar_url} className="w-full h-full object-cover" /> : currentSelected.name?.charAt(0)}
                 </div>
-                <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                  <div className="text-xl font-bold text-brand-400">{formatCurrency(selectedCustomer.spend)}</div>
-                  <div className="text-[10px] text-gray-500 uppercase tracking-widest">Total Spend</div>
-                </div>
+                <h2 className="text-xl font-bold text-white mb-1">{currentSelected.name}</h2>
+                <p className="text-sm text-gray-400 capitalize">{currentSelected.role === 'customer' ? 'Verified Member' : 'Walk-in Customer'}</p>
+                {currentSelected.city && (
+                  <div className="flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] text-gray-400">
+                    <Store className="w-3.5 h-3.5" /> {currentSelected.city}
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Today's Activity */}
-            {selectedCustomer.todayActivity && (
-              <div className="p-4 bg-brand-500/10 border-b border-brand-500/20">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold text-brand-400 uppercase tracking-wider">Today's Activity</span>
-                  <span className="text-[10px] bg-brand-500 text-white px-1.5 py-0.5 rounded font-bold">ACTIVE</span>
+            <div className="grid grid-cols-2 gap-px bg-white/10 border-b border-white/10">
+              <div className="p-4 bg-[#0a0a0f] text-center">
+                <div className="text-xl font-bold text-white">{currentSelected.visits}</div>
+                <div className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Total Visits</div>
+              </div>
+              <div className="p-4 bg-[#0a0a0f] text-center">
+                <div className="text-xl font-bold text-brand-300">{formatCurrency(currentSelected.spend)}</div>
+                <div className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Total Spend</div>
+              </div>
+            </div>
+
+            <div className="p-6 border-b border-white/10 bg-white/3">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Record Transaction</h3>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
+                  <input 
+                    type="number"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="Enter bill amount"
+                    className="w-full bg-[#0a0a0f] border border-white/10 rounded-xl pl-6 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50"
+                  />
                 </div>
-                <div className="flex items-center justify-between">
+                <button 
+                  onClick={handleRecord}
+                  disabled={recording || !amount}
+                  className="px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold transition-all disabled:opacity-50">
+                  {recording ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Record'}
+                </button>
+              </div>
+            </div>
+
+            {currentSelected.todayActivity && (
+              <div className="p-6 border-b border-white/10 bg-brand-500/5">
+                <h3 className="text-xs font-bold text-brand-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <Zap className="w-3 h-3 fill-current" /> Active Today
+                </h3>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-brand-500/10 border border-brand-500/20">
                   <div>
-                    <div className="text-sm font-bold text-white">{selectedCustomer.todayActivity.service}</div>
-                    <div className="text-xs text-gray-400 capitalize">{selectedCustomer.todayActivity.status.replace('_', ' ')}</div>
+                    <div className="text-xs font-bold text-white">{currentSelected.todayActivity.service}</div>
+                    <div className="text-[10px] text-brand-300 mt-0.5 capitalize">{currentSelected.todayActivity.status}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs font-bold text-white">{selectedCustomer.todayActivity.time}</div>
+                    <div className="text-xs font-bold text-white">{currentSelected.todayActivity.time}</div>
                     <div className="text-[10px] text-gray-500">Service Time</div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Visit History */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Visit History</h3>
               <div className="space-y-3">
-                {selectedCustomer.history.map((h, i) => (
+                {currentSelected.history.map((h, i) => (
                   <div key={h.id + i} className="flex gap-3 relative pb-4 last:pb-0">
-                    {i !== selectedCustomer.history.length - 1 && <div className="absolute left-[11px] top-7 bottom-0 w-px bg-white/5" />}
+                    {i !== currentSelected.history.length - 1 && <div className="absolute left-[11px] top-7 bottom-0 w-px bg-white/5" />}
                     <div className={`w-6 h-6 rounded-lg ${h.status === 'completed' || h.status === 'done' ? 'bg-green-500/20 text-green-500' : 'bg-white/5 text-gray-500'} flex items-center justify-center flex-shrink-0 z-10 border border-white/5`}>
                       <CheckCircle className="w-3 h-3" />
                     </div>
@@ -677,7 +715,7 @@ function CRMPage({ customers }) {
                     </div>
                   </div>
                 ))}
-                {selectedCustomer.history.length === 0 && <p className="text-center text-xs text-gray-500 py-8">No visit history found.</p>}
+                {currentSelected.history.length === 0 && <p className="text-center text-xs text-gray-500 py-8">No visit history found.</p>}
               </div>
             </div>
           </div>
@@ -740,6 +778,7 @@ export default function OwnerDashboard() {
     callNext, addWalkIn, addStaff, updateStaff, deleteStaff,
     addService, editService, removeService, saveSalonSettings,
     updateQueueStaff, switchSalon, allSalons = [],
+    recordTransaction,
     mode = 'sample',
   } = useOwnerDashboardData(profile) || {};
 
@@ -783,7 +822,7 @@ export default function OwnerDashboard() {
     />,
     staff: <StaffPage staff={staff} onAdd={addStaff} onUpdate={updateStaff} onDelete={deleteStaff} />,
     services: <ServicesPage services={services} onAdd={addService} onEdit={editService} onDelete={removeService} />,
-    crm: <CRMPage customers={customers} />,
+    crm: <CRMPage customers={customers} recordTransaction={recordTransaction} />,
     reports: <ReportsPage revenueSeries={revenueSeries} peakHours={peakHours} />,
     settings: <SettingsPage salon={salon} onSave={saveSalonSettings} />,
   };
