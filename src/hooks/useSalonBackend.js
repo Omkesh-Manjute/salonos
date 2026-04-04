@@ -432,7 +432,7 @@ export function useOwnerDashboardData(profile) {
     } catch (error) {
       setState((current) => ({ ...current, loading: false, error: error.message || 'Failed to load dashboard.' }));
     }
-  }, [profile?.id]);
+  }, [profile?.id, activeSalonId]);
 
   // ── Staff ──
 
@@ -473,7 +473,7 @@ export function useOwnerDashboardData(profile) {
     const { data, error } = await createService({ 
       salon_id: salonId, 
       tenant_id: tenantId, 
-      owner_id: ownerId,
+      owner_id: profile?.id,
       name, 
       price: Number(price), 
       category: category || 'General', 
@@ -560,6 +560,12 @@ export function useOwnerDashboardData(profile) {
     await load();
     return entry;
   }, [load, sampleState, state.staff, state.queue, state.salon, profile?.id]);
+
+  const switchSalon = useCallback(async (id) => {
+    setActiveSalonId(id);
+    localStorage.setItem('owner_active_salon_id', id);
+    // The load effect will re-run because it depends on activeSalonId
+  }, []);
 
   // ── Update salon settings ──
   const saveSalonSettings = useCallback(async (updates) => {
