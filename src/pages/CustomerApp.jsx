@@ -536,7 +536,8 @@ function ProfileTab({ profile, bookings, favorites, staff, onUpdate, uploadPhoto
     if (!error && url) {
       setFormData(prev => ({ ...prev, avatar_url: url }));
     } else {
-      alert('Upload failed. Please try again.');
+      console.log("UPLOAD ERROR:", error);
+      alert(`Upload failed: ${error?.message || 'Unknown error'}. Please try again.`);
     }
     setUploading(false);
   }
