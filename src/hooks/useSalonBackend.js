@@ -552,15 +552,52 @@ export function useOwnerDashboardData(profile) {
     const ownerId = profile?.id;
     if (!isSupabaseConfigured || !ownerId) return sampleState.callNext();
     const salonId = state.salon?.id;
+    
+    // Find current active person and complete them
     const currentActive = state.queue.find((item) => item.status === 'in_progress');
-    if (currentActive) await updateQueueEntry(currentActive.id, { status: 'done' });
-    const nextEntry = state.queue.find((item) => item.status === 'next') || state.queue.find((item) => item.status === 'waiting');
-    if (nextEntry) {
-      await updateQueueEntry(nextEntry.id, { status: 'in_progress' });
-      if (nextEntry.user_id) await sendNotification({ userId: nextEntry.user_id, tenantId: state.salon?.tenant_id, type: 'your_turn_next', message: `${nextEntry.customer_name}, your turn is next.` });
+    if (currentActive) {
+      if (currentActive.is_appointment) {
+        await updateBookingStatus(currentActive.id, 'done');
+      } else {
+        await updateQueueEntry(currentActive.id, { status: 'done' });
+      }
     }
-    const following = state.queue.filter((item) => item.status === 'waiting' && item.id !== nextEntry?.id).sort((a, b) => a.position - b.position)[0];
-    if (following) await updateQueueEntry(following.id, { status: 'next' });
+
+    // Find the next person to call (next > waiting > booked appointment)
+    const nextEntry = state.queue.find((item) => item.status === 'next') 
+      || state.queue.find((item) => item.status === 'waiting')
+      || state.queue.find((item) => item.status === 'booked');
+
+    if (nextEntry) {
+      if (nextEntry.is_appointment) {
+        await updateBookingStatus(nextEntry.id, 'in_progress');
+      } else {
+        await updateQueueEntry(nextEntry.id, { status: 'in_progress' });
+      }
+      
+      if (nextEntry.user_id) {
+        await sendNotification({ 
+          userId: nextEntry.user_id, 
+          tenantId: state.salon?.tenant_id, 
+          type: 'your_turn_now', 
+          message: `${nextEntry.customer_name}, your service is starting now.` 
+        });
+      }
+    }
+
+    // Mark the following person as 'next'
+    const following = state.queue.filter((item) => 
+      (item.status === 'waiting' || item.status === 'booked') && item.id !== nextEntry?.id
+    ).sort((a, b) => {
+      const order = { 'waiting': 1, 'booked': 2 };
+      if (order[a.status] !== order[b.status]) return (order[a.status] || 99) - (order[b.status] || 99);
+      return new Date(a.created_at) - new Date(b.created_at);
+    })[0];
+
+    if (following && !following.is_appointment) {
+      await updateQueueEntry(following.id, { status: 'next' });
+    }
+
     await resequenceQueue(undefined, salonId);
     await load();
     return { error: null };
