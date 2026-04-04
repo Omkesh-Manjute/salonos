@@ -79,13 +79,17 @@ export async function listStaffBySalonId(salonId) {
 export async function listStaffForSalon(salonId, ownerId) {
   if (!salonId && !ownerId) return { data: [], error: null };
   let query = supabase.from('staff').select('*');
+  
   if (salonId && ownerId) {
     query = query.or(`salon_id.eq.${salonId},owner_id.eq.${ownerId}`);
   } else if (salonId) {
     query = query.eq('salon_id', salonId);
-  } else {
+  } else if (ownerId) {
     query = query.eq('owner_id', ownerId);
+  } else {
+    return { data: [], error: null };
   }
+  
   const { data, error } = await query.order('created_at', { ascending: false });
   if (error) console.log('ERROR listStaffForSalon:', error);
   // Deduplicate by id (OR query can return duplicates)
@@ -110,15 +114,19 @@ export async function listServicesBySalonId(salonId) {
 // Robust: finds services by salon_id OR tenant_id (fallback for legacy data)
 export async function listServicesForSalon(salonId, tenantId) {
   if (!salonId && !tenantId) return { data: [], error: null };
-  let query = supabase.from('services').select('*').eq('active', true).order('name');
+  let query = supabase.from('services').select('*').eq('active', true);
+  
   if (salonId && tenantId) {
     query = query.or(`salon_id.eq.${salonId},tenant_id.eq.${tenantId}`);
   } else if (salonId) {
     query = query.eq('salon_id', salonId);
-  } else {
+  } else if (tenantId) {
     query = query.eq('tenant_id', tenantId);
+  } else {
+    return { data: [], error: null };
   }
-  const { data, error } = await query;
+  
+  const { data, error } = await query.order('name');
   if (error) console.log('ERROR listServicesForSalon:', error);
   // Deduplicate
   const seen = new Set();
@@ -153,14 +161,28 @@ export async function createBooking(booking) {
 
 export async function listBookings({ tenantId, userId, ownerId, salonId, limit } = {}) {
   let query = supabase.from('bookings').select('*').order('booking_time', { ascending: true });
-  if (salonId) query = query.eq('salon_id', salonId);
-  else if (tenantId) query = query.eq('tenant_id', tenantId);
+  
+  if (salonId && tenantId) {
+    query = query.or(`salon_id.eq.${salonId},tenant_id.eq.${tenantId}`);
+  } else if (salonId) {
+    query = query.eq('salon_id', salonId);
+  } else if (tenantId) {
+    query = query.eq('tenant_id', tenantId);
+  }
+  
   if (userId) query = query.eq('user_id', userId);
   if (ownerId) query = query.eq('owner_id', ownerId);
   if (limit) query = query.limit(limit);
   
   const { data, error } = await query;
-  if (error) console.log("ERROR:", error);
+  if (error) console.log("ERROR listBookings:", error);
+  
+  // Deduplicate if we used OR query
+  if (salonId && tenantId) {
+    const seen = new Set();
+    return { data: (data || []).filter(r => { if (seen.has(r.id)) return false; seen.add(r.id); return true; }), error };
+  }
+  
   return { data, error };
 }
 

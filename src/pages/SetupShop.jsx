@@ -78,10 +78,11 @@ export default function SetupShop() {
       let salon = null;
 
       if (isSupabaseConfigured) {
+        const tenant_id = `tenant-${slug}`;
         // 1. Create salon
         const { data: salonData, error: salonErr } = await supabase
           .from('salons')
-          .insert({ owner_id: user.uid, name: salonName, slug, is_setup: true })
+          .insert({ owner_id: user.uid, name: salonName, slug, tenant_id, is_setup: true })
           .select()
           .single();
         if (salonErr) throw salonErr;
@@ -93,7 +94,7 @@ export default function SetupShop() {
           await supabase.from('services').insert(
             selectedServices.map((s) => ({
               salon_id: salon.id,
-              tenant_id: salon.tenant_id,
+              tenant_id: salon.tenant_id || tenant_id,
               name: s.name,
               price: Number(s.price),
               category: 'General',
@@ -105,11 +106,11 @@ export default function SetupShop() {
 
         // 3. Insert staff
         for (const member of staffList) {
-          await addStaffMember({ owner_id: user.uid, salon_id: salon.id, name: member.name, specialty: member.specialty });
+          await addStaffMember({ owner_id: user.uid, salon_id: salon.id, tenant_id: salon.tenant_id || tenant_id, name: member.name, specialty: member.specialty });
         }
 
         // 4. Update user profile
-        await supabase.from('users').update({ salon_id: salon.id, role: 'owner' }).eq('id', user.uid);
+        await supabase.from('users').update({ salon_id: salon.id, tenant_id: salon.tenant_id || tenant_id, role: 'owner' }).eq('id', user.uid);
 
         // 5. Save salon to localStorage
         localStorage.setItem('owner_salon_id', salon.id);

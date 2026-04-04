@@ -179,7 +179,7 @@ export function useCustomerAppData(profile) {
       const [staffRes, servicesRes, bookingsRes, queueRes, notificationsRes] = await Promise.all([
         listStaffForSalon(activeSalonId, salon?.owner_id),
         listServicesForSalon(activeSalonId, salon?.tenant_id),
-        listBookings({ salonId: activeSalonId, userId }),
+        listBookings({ salonId: activeSalonId, tenantId: salon?.tenant_id, userId }),
         getQueueBySalonId(activeSalonId),
         listNotifications(userId),
       ]);
@@ -322,7 +322,7 @@ export function useOwnerDashboardData(profile) {
         listStaffForSalon(salonId, ownerId),
         listServicesForSalon(salonId, salon.tenant_id),
         listUsersByTenant(salon.tenant_id || '', 'customer'),
-        listBookings({ salonId }),
+        listBookings({ salonId, tenantId: salon.tenant_id }),
         getQueueBySalonId(salonId),
       ]);
 
