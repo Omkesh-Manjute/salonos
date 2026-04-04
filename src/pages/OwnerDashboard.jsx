@@ -3,10 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   Bell,
   Calendar,
+  Check,
+  CheckCircle,
   ChevronLeft,
   Clock,
   Copy,
-  Check,
   DollarSign,
   Filter,
   LogOut,
@@ -25,6 +26,7 @@ import {
   Trash2,
   User,
   Users,
+  Zap,
   Shield,
   X,
 } from 'lucide-react';
