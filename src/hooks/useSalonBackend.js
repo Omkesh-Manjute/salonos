@@ -418,12 +418,36 @@ export function useOwnerDashboardData(profile) {
         }
       });
 
+      // 4. Merge today's confirmed bookings into the queue for visibility
+      const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+      const todayBookings = (bookingsData || [])
+        .filter(b => b.status === 'confirmed' && b.booking_time?.startsWith(today))
+        .map(b => ({
+          ...b,
+          customer_name: b.customer_name,
+          service_name: b.service_name,
+          staff_name: b.staff_name || 'Stylist',
+          status: 'booked',
+          is_appointment: true, // Tag as appt for UI
+          created_at: b.booking_time,
+          position: 999, // Appointments don't use position yet
+        }));
+
+      const combinedQueue = [...(queueRes.data || []), ...todayBookings];
+      
+      // Sort: in_progress > next > waiting > booked > done
+      const sortedQueue = combinedQueue.sort((a, b) => {
+        const order = { 'in_progress': 1, 'next': 2, 'waiting': 3, 'booked': 4, 'done': 5 };
+        if (order[a.status] !== order[b.status]) return order[a.status] - order[b.status];
+        return new Date(a.created_at) - new Date(b.created_at);
+      });
+
       setState({
         loading: false,
         services: servicesRes.data || [],
         customers: Array.from(customerMap.values()),
         bookings: bookingsData,
-        queue: queueData,
+        queue: sortedQueue,
         staff,
         salon,
         error: staffRes.error?.message || servicesRes.error?.message || '',
@@ -596,7 +620,7 @@ export function useOwnerDashboardData(profile) {
     return {
       revenue,
       bookings: bookings.length,
-      queue: queue.filter((item) => ['waiting', 'in_progress', 'next'].includes(item.status)).length,
+      queue: queue.filter((item) => ['waiting', 'in_progress', 'next', 'booked'].includes(item.status)).length,
       rating: current.staff?.length ? (current.staff.reduce((sum, item) => sum + Number(item.rating || 0), 0) / current.staff.length).toFixed(1) : '4.8',
       customers: customers.length,
     };
