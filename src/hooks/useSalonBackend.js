@@ -418,16 +418,16 @@ export function useOwnerDashboardData(profile) {
         }
       });
 
-      // 4. Merge today's confirmed bookings into the queue for visibility
+      // 4. Merge today's confirmed/checked_in bookings into the queue for visibility
       const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
       const todayBookings = (bookingsData || [])
-        .filter(b => b.status === 'confirmed' && b.booking_time?.startsWith(today))
+        .filter(b => (b.status === 'confirmed' || b.status === 'checked_in') && b.booking_time?.startsWith(today))
         .map(b => ({
           ...b,
           customer_name: b.customer_name,
           service_name: b.service_name,
           staff_name: b.staff_name || 'Stylist',
-          status: 'booked',
+          status: b.status === 'checked_in' ? 'in_progress' : 'booked',
           is_appointment: true, // Tag as appt for UI
           created_at: b.booking_time,
           position: 999, // Appointments don't use position yet
@@ -557,7 +557,7 @@ export function useOwnerDashboardData(profile) {
     const currentActive = state.queue.find((item) => item.status === 'in_progress');
     if (currentActive) {
       if (currentActive.is_appointment) {
-        await updateBookingStatus(currentActive.id, 'done');
+        await updateBookingStatus(currentActive.id, 'completed');
       } else {
         await updateQueueEntry(currentActive.id, { status: 'done' });
       }
@@ -570,7 +570,7 @@ export function useOwnerDashboardData(profile) {
 
     if (nextEntry) {
       if (nextEntry.is_appointment) {
-        await updateBookingStatus(nextEntry.id, 'in_progress');
+        await updateBookingStatus(nextEntry.id, 'checked_in');
       } else {
         await updateQueueEntry(nextEntry.id, { status: 'in_progress' });
       }
