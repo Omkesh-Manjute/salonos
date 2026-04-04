@@ -391,9 +391,9 @@ export function useOwnerDashboardData(profile) {
 
       // Start with registered users for this tenant
       usersData.forEach(u => {
-        const key = u.id;
-        customerMap.set(key, {
-          id: u.id,
+        const key = u.id.toLowerCase().trim();
+        const customerObj = {
+          id: key,
           name: u.name,
           email: u.email || '',
           phone: u.phone || '',
@@ -405,10 +405,16 @@ export function useOwnerDashboardData(profile) {
           history: [],
           todayActivity: null,
           role: 'customer'
-        });
+        };
+        customerMap.set(key, customerObj);
+        
+        // Also map by phone
+        if (u.phone) {
+          customerMap.set(u.phone.toLowerCase().trim(), customerObj);
+        }
       });
 
-      // Also find all unique user_ids from bookings/queue to fetch profiles even if they aren't in usersData
+      // Fetch external users (online bookers not in this tenant yet)
       const externalUserIds = Array.from(new Set([
         ...queueData.map(q => q.user_id),
         ...bookingsData.map(b => b.user_id)
@@ -416,9 +422,15 @@ export function useOwnerDashboardData(profile) {
 
       const { data: externalUsers } = await listUsersByIds(externalUserIds);
       (externalUsers || []).forEach(u => {
-        if (!customerMap.has(u.id)) {
-          customerMap.set(u.id, {
-            id: u.id,
+        const key = u.id.toLowerCase().trim();
+        const phoneKey = u.phone ? u.phone.toLowerCase().trim() : null;
+        
+        // Check if we already have this user by ID or Phone
+        let c = customerMap.get(key) || (phoneKey ? customerMap.get(phoneKey) : null);
+        
+        if (!c) {
+          c = {
+            id: key,
             name: u.name,
             email: u.email || '',
             phone: u.phone || '',
@@ -430,14 +442,19 @@ export function useOwnerDashboardData(profile) {
             history: [],
             todayActivity: null,
             role: 'customer'
-          });
+          };
+          customerMap.set(key, c);
+          if (phoneKey) customerMap.set(phoneKey, c);
         } else {
-          // Update existing with potential new info (picture/city)
-          const c = customerMap.get(u.id);
+          // Sync profile info to the existing record
           c.avatar_url = u.avatar_url || c.avatar_url;
           c.city = u.city || c.city;
           c.email = u.email || c.email;
-          c.name = u.name || c.name; // User's account name is source of truth
+          c.name = u.name || c.name;
+          c.role = 'customer'; // Upgrade to verified
+          // Ensure both keys point to it
+          customerMap.set(key, c);
+          if (phoneKey && !customerMap.has(phoneKey)) customerMap.set(phoneKey, c);
         }
       });
 
