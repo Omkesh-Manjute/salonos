@@ -25,6 +25,27 @@ export async function updateUserProfile(userId, updates) {
   return { data, error };
 }
 
+export async function uploadAvatar(userId, file) {
+  if (!file) return { error: 'No file provided' };
+  const fileExt = file.name.split('.').pop();
+  const filePath = `user-${userId}/${Date.now()}.${fileExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(filePath, file, { upsert: true });
+
+  if (uploadError) {
+    console.log("UPLOAD ERROR:", uploadError);
+    return { error: uploadError };
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('avatars')
+    .getPublicUrl(filePath);
+
+  return { data: publicUrl, error: null };
+}
+
 export async function createSalon(data) {
   const { data: result, error } = await supabase.from('salons').insert(data).select().single();
   if (error) console.log("ERROR:", error);

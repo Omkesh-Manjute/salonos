@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Bell, Calendar, CheckCircle, ChevronLeft, Clock,
@@ -511,9 +511,12 @@ function QueueTab({ profile, queue, openBooking }) {
 
 // ─── Profile Tab ───────────────────────────────────────────────────────────
 
-function ProfileTab({ profile, bookings, favorites, staff, onUpdate, refreshAuth }) {
+function ProfileTab({ profile, bookings, favorites, staff, onUpdate, uploadPhoto, refreshAuth }) {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
   const [formData, setFormData] = useState({
     name: profile?.name || '',
     email: profile?.email || '',
@@ -523,6 +526,20 @@ function ProfileTab({ profile, bookings, favorites, staff, onUpdate, refreshAuth
 
   const completed = bookings.filter(b => b.status === 'completed');
   const favStaff = staff.filter(s => favorites.includes(s.id));
+
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const { data: url, error } = await uploadPhoto(file);
+    if (!error && url) {
+      setFormData(prev => ({ ...prev, avatar_url: url }));
+    } else {
+      alert('Upload failed. Please try again.');
+    }
+    setUploading(false);
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -538,19 +555,21 @@ function ProfileTab({ profile, bookings, favorites, staff, onUpdate, refreshAuth
     <div className="p-4 space-y-4">
       <div className="glass rounded-2xl p-5 border border-white/10">
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="relative mb-3 group">
-            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-white text-3xl font-bold shadow-xl shadow-brand-500/10 overflow-hidden">
+          <div className="relative mb-3 group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center text-white text-3xl font-bold shadow-xl shadow-brand-500/10 overflow-hidden relative">
               {formData.avatar_url ? (
-                <img src={formData.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                <img src={formData.avatar_url} alt="Profile" className={`w-full h-full object-cover transition-opacity ${uploading ? 'opacity-30' : 'opacity-100'}`} />
               ) : (
                 (formData.name || 'C').charAt(0)
               )}
+              {uploading && <div className="absolute inset-0 flex items-center justify-center"><RefreshCw className="w-6 h-6 animate-spin text-white" /></div>}
             </div>
-            <button 
-              onClick={() => setIsEditing(true)}
-              className="absolute -bottom-1 -right-1 w-7 h-7 bg-brand-500 rounded-xl border-2 border-[#0a0a0f] flex items-center justify-center text-white shadow-lg hover:scale-110 transition-transform">
+            <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-brand-500 rounded-xl border-2 border-[#0a0a0f] flex items-center justify-center text-white shadow-lg hover:scale-110 transition-transform">
               <Zap className="w-3.5 h-3.5 fill-current" />
-            </button>
+            </div>
+            {/* Tooltip on hover */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-8 px-2 py-1 bg-black text-[9px] text-white rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border border-white/10 uppercase tracking-widest font-bold">Upload Photo</div>
           </div>
           
           {!isEditing ? (
@@ -588,13 +607,6 @@ function ProfileTab({ profile, bookings, favorites, staff, onUpdate, refreshAuth
                 <input 
                   value={formData.city} onChange={e => setFormData(p => ({ ...p, city: e.target.value }))}
                   placeholder="e.g. Mumbai"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50" />
-              </div>
-              <div className="space-y-1 text-left">
-                <label className="text-[10px] text-gray-500 ml-1 uppercase tracking-wider">Avatar URL</label>
-                <input 
-                  value={formData.avatar_url} onChange={e => setFormData(p => ({ ...p, avatar_url: e.target.value }))}
-                  placeholder="https://..."
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50" />
               </div>
               <div className="flex gap-2 pt-2">
@@ -686,7 +698,7 @@ export default function CustomerApp() {
     });
   }, []);
 
-  const { services, staff, bookings, queue, salon, createBooking, updateProfile, loading, error, mode, needsSalonEntry, enterSalonBySlug } = useCustomerAppData(profile);
+  const { services, staff, bookings, queue, salon, createBooking, updateProfile, uploadPhoto, loading, error, mode, needsSalonEntry, enterSalonBySlug } = useCustomerAppData(profile);
 
   function openBooking() { setPreselectedStaff(''); setBookingOpen(true); setActiveTab('book'); }
   function openBookingWithStaff(staffName) { setPreselectedStaff(staffName); setBookingOpen(true); setActiveTab('book'); }
@@ -774,7 +786,7 @@ export default function CustomerApp() {
                   : activeTab === 'home' && <HomeTab profile={profile} bookings={bookings} queue={queue} services={services} staff={staff} salon={salon} favorites={favorites} toggleFavorite={toggleFavorite} openBooking={openBooking} openBookingWithStaff={openBookingWithStaff} switchToQueue={switchToQueue} />
                 }
                 {!bookingOpen && activeTab === 'queue' && <QueueTab profile={profile} queue={queue} openBooking={openBooking} />}
-                {!bookingOpen && activeTab === 'profile' && <ProfileTab profile={profile} bookings={bookings} favorites={favorites} staff={staff} onUpdate={updateProfile} refreshAuth={refreshProfile} />}
+                {!bookingOpen && activeTab === 'profile' && <ProfileTab profile={profile} bookings={bookings} favorites={favorites} staff={staff} onUpdate={updateProfile} uploadPhoto={uploadPhoto} refreshAuth={refreshProfile} />}
               </>
             )}
           </div>

@@ -27,6 +27,7 @@ import {
   updateService,
   updateSalon,
   updateUserProfile,
+  uploadAvatar,
 } from '../lib/supabase';
 import {
   cloneSample,
@@ -289,6 +290,11 @@ export function useCustomerAppData(profile) {
     return response;
   }, [load, profile?.name, profile?.phone, state.services, state.salon, state.queue, userId, localSalonId, sampleState]);
 
+  const uploadPhoto = useCallback(async (file) => {
+    if (!isSupabaseConfigured || !userId) return { error: 'Not logged in' };
+    return await uploadAvatar(userId, file);
+  }, [userId]);
+
   const updateProfile = useCallback(async (updates) => {
     if (!isSupabaseConfigured || !userId) return { error: 'Not logged in' };
     const response = await updateUserProfile(userId, updates);
@@ -300,7 +306,7 @@ export function useCustomerAppData(profile) {
     return { ...sampleState, loading: false, error: '', mode: 'sample', needsSalonEntry: false, enterSalonBySlug };
   }
 
-  return { ...state, createBooking, updateProfile, mode: 'live', enterSalonBySlug };
+  return { ...state, createBooking, updateProfile, uploadPhoto, mode: 'live', enterSalonBySlug };
 }
 
 // ─── Owner Dashboard Hook ─────────────────────────────────────────────────
