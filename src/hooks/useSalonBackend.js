@@ -299,6 +299,7 @@ export function useCustomerAppData(profile) {
 
 export function useOwnerDashboardData(profile) {
   const sampleState = useSampleTenantState(profile);
+  const [activeSalonId, setActiveSalonId] = useState(() => localStorage.getItem('owner_active_salon_id') || '');
   const [state, setState] = useState({
     loading: isSupabaseConfigured,
     services: [],
@@ -307,6 +308,7 @@ export function useOwnerDashboardData(profile) {
     bookings: [],
     queue: [],
     salon: null,
+    allSalons: [],
     error: '',
     needsSetup: false,
   });
@@ -319,18 +321,31 @@ export function useOwnerDashboardData(profile) {
     }
 
     try {
-      // 1. Get owner's salon
-      const { data: salons } = await getSalonsByOwner(ownerId);
-      const salon = salons?.[0] || null;
+      // 1. Get all owner's salons
+      const { data: allSalons } = await getSalonsByOwner(ownerId);
+      if (!allSalons || allSalons.length === 0) {
+        setState((current) => ({ ...current, loading: false, needsSetup: true }));
+        return;
+      }
 
-      if (!salon || !salon.is_setup) {
-        setState((current) => ({ ...current, loading: false, needsSetup: true, salon }));
+      // 2. Determine active salon (fallback to first one)
+      const currentSalonId = activeSalonId || allSalons[0].id;
+      const salon = allSalons.find(s => s.id === currentSalonId) || allSalons[0];
+      
+      // Update local storage for persistence
+      if (salon.id !== activeSalonId) {
+        localStorage.setItem('owner_active_salon_id', salon.id);
+        setActiveSalonId(salon.id);
+      }
+
+      if (!salon.is_setup) {
+        setState((current) => ({ ...current, loading: false, needsSetup: true, salon, allSalons }));
         return;
       }
 
       const salonId = salon.id;
 
-      // 2. Fetch all data with robust OR queries (handles legacy data without salon_id)
+      // 3. Fetch all data for the active salon
       const [staffRes, servicesRes, customersRes, bookingsRes, queueRes] = await Promise.all([
         listStaffForSalon(salonId, ownerId),
         listServicesForSalon(salonId, salon.tenant_id, ownerId),
@@ -597,6 +612,9 @@ export function useOwnerDashboardData(profile) {
     addService,
     editService,
     removeService,
+    updateQueueStaff,
+    switchSalon,
+    allSalons: state.allSalons,
     saveSalonSettings,
     mode: !isSupabaseConfigured ? 'sample' : 'live',
   };

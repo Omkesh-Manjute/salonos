@@ -54,19 +54,38 @@ function StatusBadge({ status }) {
   return <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${map[status] || 'bg-white/10 text-gray-300'}`}>{status.replace('_', ' ')}</span>;
 }
 
-function Sidebar({ active, setActive, open, setOpen, profile, salon }) {
+function Sidebar({ active, setActive, open, setOpen, profile, salon, allSalons, onSwitchSalon }) {
   return (
     <>
       {open && <div className="fixed inset-0 bg-black/60 z-20 lg:hidden" onClick={() => setOpen(false)} />}
       <aside className={`fixed top-0 left-0 h-full w-64 bg-[#0e0e1a] border-r border-white/10 z-30 flex flex-col transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:z-auto`}>
-        <div className="flex items-center gap-3 p-5 border-b border-white/10">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-gold-400 flex items-center justify-center">
-            <Scissors className="w-4 h-4 text-white" />
+        <div className="p-5 border-b border-white/10 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-gold-400 flex items-center justify-center">
+              <Scissors className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <div className="font-bold text-white text-sm truncate max-w-[140px]">{salon?.name || "My Salon"}</div>
+              <div className="text-xs text-brand-400">{salon?.is_setup ? 'Live' : 'Setup Required'}</div>
+            </div>
           </div>
-          <div>
-            <div className="font-bold text-white text-sm">{salon?.name || "My Salon"}</div>
-            <div className="text-xs text-brand-400">{salon?.is_setup ? 'Live' : 'Setup Required'}</div>
-          </div>
+
+          {allSalons.length > 1 && (
+            <div className="space-y-1.5">
+              <label className="text-[10px] text-gray-500 uppercase tracking-widest pl-1 font-bold">Switch Salon</label>
+              <select 
+                value={salon?.id || ''} 
+                onChange={(e) => onSwitchSalon(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-brand-300 focus:outline-none focus:border-brand-500/50 cursor-pointer"
+              >
+                {allSalons.map(s => (
+                  <option key={s.id} value={s.id} className="bg-[#0e0e1a] text-white">
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
         {salon?.slug && (
           <div className="px-4 py-2 border-b border-white/5">
@@ -176,11 +195,25 @@ function QueuePage({ queue, services, staff, onCallNext, onAddWalkIn, onUpdateSt
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState('');
   const [serviceName, setServiceName] = useState(services[0]?.name || 'Haircut');
+  const [pendingStaff, setPendingStaff] = useState({}); // { entryId: staffName }
 
   async function handleAddWalkIn() {
     if (!name.trim()) return;
     await onAddWalkIn({ customerName: name, serviceName });
     setName(''); setShowAdd(false);
+  }
+
+  async function handleSaveStaff(id) {
+    const newName = pendingStaff[id];
+    if (!newName) return;
+    const { error } = await onUpdateStaff(id, newName);
+    if (!error) {
+      setPendingStaff(prev => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
   }
 
   return (
@@ -206,26 +239,35 @@ function QueuePage({ queue, services, staff, onCallNext, onAddWalkIn, onUpdateSt
         </div>
       )}
       <div className="glass rounded-2xl border border-white/5 overflow-hidden">
-        <div className="hidden lg:grid grid-cols-[60px_1fr_160px_140px_120px] gap-3 px-5 py-3 border-b border-white/10 text-xs text-gray-500 font-medium uppercase tracking-wider">
+        <div className="hidden lg:grid grid-cols-[60px_1fr_160px_180px_120px] gap-3 px-5 py-3 border-b border-white/10 text-xs text-gray-500 font-medium uppercase tracking-wider">
           <span>#</span><span>Customer</span><span>Service</span><span>Stylist</span><span>Status</span>
         </div>
         <div className="divide-y divide-white/5">
           {queue.map((item) => (
-            <div key={item.id} className="grid grid-cols-1 lg:grid-cols-[60px_1fr_160px_140px_120px] gap-3 items-center px-5 py-4 hover:bg-white/3 transition-colors">
+            <div key={item.id} className="grid grid-cols-1 lg:grid-cols-[60px_1fr_160px_180px_120px] gap-3 items-center px-5 py-4 hover:bg-white/3 transition-colors">
               <span className="text-sm text-brand-300 font-semibold">{item.position}</span>
               <div>
                 <div className="font-medium text-white text-sm">{item.customer_name}</div>
                 <div className="text-xs text-gray-500">{item.phone || 'Walk-in'} · ETA {item.estimated_wait_minutes} min</div>
               </div>
               <span className="text-sm text-gray-300">{item.service_name}</span>
-              <div className="text-sm">
+              <div className="flex items-center gap-2">
                 <select 
-                  value={item.staff_name} 
-                  onChange={(e) => onUpdateStaff(item.id, e.target.value)}
-                  className="bg-transparent border-b border-white/10 text-brand-300 focus:outline-none focus:border-brand-500 cursor-pointer"
+                  value={pendingStaff[item.id] || item.staff_name} 
+                  onChange={(e) => setPendingStaff(prev => ({ ...prev, [item.id]: e.target.value }))}
+                  className="bg-transparent border-b border-white/10 text-brand-300 focus:outline-none focus:border-brand-500 cursor-pointer text-sm"
                 >
                   {staff.map(s => <option key={s.id} value={s.name} className="bg-[#0e0e1a] text-white">{s.name}</option>)}
                 </select>
+                {pendingStaff[item.id] && pendingStaff[item.id] !== item.staff_name && (
+                  <button 
+                    onClick={() => handleSaveStaff(item.id)}
+                    className="p-1 rounded-md bg-brand-600/20 text-brand-400 hover:bg-brand-600/40 transition-colors"
+                    title="Save Stylist"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
               <StatusBadge status={item.status} />
             </div>
@@ -638,7 +680,16 @@ export default function OwnerDashboard() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] flex">
-      <Sidebar active={activePage} setActive={setActivePage} open={sidebarOpen} setOpen={setSidebarOpen} profile={profile} salon={salon} />
+      <Sidebar 
+        active={activePage} 
+        setActive={setActivePage} 
+        open={sidebarOpen} 
+        setOpen={setSidebarOpen} 
+        profile={profile} 
+        salon={salon}
+        allSalons={allSalons}
+        onSwitchSalon={switchSalon}
+      />
       <div className="flex-1 flex flex-col min-w-0">
         <header className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/10 bg-[#0a0a0f] sticky top-0 z-10">
           <div className="flex items-center gap-4">
