@@ -630,7 +630,7 @@ export default function OwnerDashboard() {
     loading, error, needsSetup,
     callNext, addWalkIn, addStaff, updateStaff, deleteStaff,
     addService, editService, removeService, saveSalonSettings,
-    updateQueueStaff,
+    updateQueueStaff, switchSalon, allSalons,
     mode,
   } = useOwnerDashboardData(profile);
 
