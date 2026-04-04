@@ -172,7 +172,7 @@ function OverviewPage({ profile, metrics, revenueSeries, queue, mode }) {
   );
 }
 
-function QueuePage({ queue, services, onCallNext, onAddWalkIn }) {
+function QueuePage({ queue, services, staff, onCallNext, onAddWalkIn, onUpdateStaff }) {
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState('');
   const [serviceName, setServiceName] = useState(services[0]?.name || 'Haircut');
@@ -218,7 +218,15 @@ function QueuePage({ queue, services, onCallNext, onAddWalkIn }) {
                 <div className="text-xs text-gray-500">{item.phone || 'Walk-in'} · ETA {item.estimated_wait_minutes} min</div>
               </div>
               <span className="text-sm text-gray-300">{item.service_name}</span>
-              <span className="text-sm text-gray-300">{item.staff_name}</span>
+              <div className="text-sm">
+                <select 
+                  value={item.staff_name} 
+                  onChange={(e) => onUpdateStaff(item.id, e.target.value)}
+                  className="bg-transparent border-b border-white/10 text-brand-300 focus:outline-none focus:border-brand-500 cursor-pointer"
+                >
+                  {staff.map(s => <option key={s.id} value={s.name} className="bg-[#0e0e1a] text-white">{s.name}</option>)}
+                </select>
+              </div>
               <StatusBadge status={item.status} />
             </div>
           ))}
@@ -580,6 +588,7 @@ export default function OwnerDashboard() {
     loading, error, needsSetup,
     callNext, addWalkIn, addStaff, updateStaff, deleteStaff,
     addService, editService, removeService, saveSalonSettings,
+    updateQueueStaff,
     mode,
   } = useOwnerDashboardData(profile);
 
@@ -612,7 +621,14 @@ export default function OwnerDashboard() {
 
   const pageMap = {
     overview: <OverviewPage profile={profile} metrics={metrics} revenueSeries={revenueSeries} queue={queue} mode={mode} />,
-    queue: <QueuePage queue={queue} services={services} onCallNext={callNext} onAddWalkIn={addWalkIn} />,
+    queue: <QueuePage 
+      queue={queue} 
+      services={services} 
+      staff={staff}
+      onCallNext={callNext} 
+      onAddWalkIn={addWalkIn} 
+      onUpdateStaff={updateQueueStaff}
+    />,
     staff: <StaffPage staff={staff} onAdd={addStaff} onUpdate={updateStaff} onDelete={deleteStaff} />,
     services: <ServicesPage services={services} onAdd={addService} onEdit={editService} onDelete={removeService} />,
     crm: <CRMPage customers={customers} />,

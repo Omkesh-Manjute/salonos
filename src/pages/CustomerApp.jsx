@@ -391,10 +391,20 @@ function HomeTab({ profile, bookings, queue, services, staff, salon, favorites, 
                     }
                     <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#0e0e1a] ${isAvail ? 'bg-emerald-400' : 'bg-gray-500'}`} />
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <div className="text-sm font-medium text-white">{member.name}</div>
-                      {!isAvail && <span className="text-[10px] text-gray-500">(Busy)</span>}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="text-sm font-medium text-white truncate">{member.name}</div>
+                      {member.status === 'working' && (
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-bold text-emerald-400 uppercase tracking-tighter">
+                          <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+                          Working Now
+                        </div>
+                      )}
+                      {member.status === 'booked' && (
+                        <div className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] font-bold text-amber-400 uppercase tracking-tighter">
+                          Booked
+                        </div>
+                      )}
                     </div>
                     <div className="text-xs text-gray-400">{member.specialty} · ⭐ {member.rating}</div>
                   </div>

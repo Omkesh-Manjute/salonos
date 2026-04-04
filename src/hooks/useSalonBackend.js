@@ -184,19 +184,32 @@ export function useCustomerAppData(profile) {
         listNotifications(userId),
       ]);
 
-      const staff = (staffRes.data || []).map((item) => ({
-        id: item.id, name: item.name,
-        specialty: item.specialty || 'Salon Expert',
-        rating: item.rating || 5.0,
-        experience: item.experience || '5 yrs',
-        available: item.available ?? true,
-        avatar: item.name?.charAt(0) || 'S',
-        avatar_url: item.avatar_url || '',
-        today_clients: item.today_clients || 0,
-      }));
+      const queueData = queueRes.data || [];
+      const staff = (staffRes.data || []).map((item) => {
+        // Calculate dynamic status based on queue
+        let status = 'available';
+        const isWorking = queueData.some(q => q.staff_name === item.name && q.status === 'in_progress');
+        const isBooked = queueData.some(q => q.staff_name === item.name && (q.status === 'next' || q.status === 'waiting'));
+        
+        if (isWorking) status = 'working';
+        else if (isBooked) status = 'booked';
+        
+        return {
+          id: item.id,
+          name: item.name,
+          specialty: item.specialty || 'Salon Expert',
+          rating: item.rating || 5.0,
+          experience: item.experience || '5 yrs',
+          available: item.available ?? true,
+          status, // 'working', 'booked', 'available'
+          avatar: item.name?.charAt(0) || 'S',
+          avatar_url: item.avatar_url || '',
+          today_clients: item.today_clients || 0,
+        };
+      });
 
       // Only show active queue entries to customer
-      const activeQueue = (queueRes.data || []).filter(q => ['waiting', 'in_progress', 'next'].includes(q.status));
+      const activeQueue = queueData.filter(q => ['waiting', 'in_progress', 'next'].includes(q.status));
 
       setState({
         loading: false,
@@ -401,7 +414,21 @@ export function useOwnerDashboardData(profile) {
     });
     if (!error) await load();
     return { data, error };
-  }, [load, state.salon]);
+  }, [load, state.salon, state.staff, profile?.id]);
+
+  const updateQueueStaff = useCallback(async (id, staffName) => {
+    if (!isSupabaseConfigured) return { error: null };
+    const { data, error } = await updateQueueEntry(id, { staff_name: staffName });
+    if (!error) await load();
+    return { data, error };
+  }, [load]);
+
+  const updateQueueStatus = useCallback(async (id, status) => {
+    if (!isSupabaseConfigured) return { error: null };
+    const { data, error } = await updateQueueEntry(id, { status });
+    if (!error) await load();
+    return { data, error };
+  }, [load]);
 
   const editService = useCallback(async (id, updates) => {
     if (!isSupabaseConfigured) return { error: null };
