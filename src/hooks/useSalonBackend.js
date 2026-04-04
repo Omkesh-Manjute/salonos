@@ -722,6 +722,29 @@ export function useOwnerDashboardData(profile) {
     return { data, error };
   }, [load, state.salon]);
 
+  const recordTransaction = useCallback(async (customerId, amount, serviceName = 'Manual Entry') => {
+    if (!isSupabaseConfigured || !state.salon) return { error: 'Salon not loaded' };
+    
+    // Find customer within the latest state to get correct metadata
+    const c = state.customers.find(curr => curr.id === customerId);
+    if (!c) return { error: 'Customer not found' };
+
+    const payload = {
+      tenant_id: state.salon.tenant_id,
+      salon_id: state.salon.id,
+      owner_id: state.salon.owner_id,
+      user_id: c.role === 'customer' ? customerId : null,
+      customer_name: c.name || 'Customer',
+      customer_phone: c.phone || '',
+      service_name: serviceName,
+      total_amount: Number(amount),
+    };
+
+    const res = await createManualBooking(payload);
+    if (!res.error) await load(); // Re-fetch all data to update metrics and history
+    return res;
+  }, [load, state.salon, state.customers]);
+
   useEffect(() => {
     load();
     const ownerId = profile?.id;
@@ -764,6 +787,7 @@ export function useOwnerDashboardData(profile) {
     addService,
     editService,
     removeService,
+    recordTransaction,
     updateQueueStaff,
     switchSalon,
     allSalons: state.allSalons,
