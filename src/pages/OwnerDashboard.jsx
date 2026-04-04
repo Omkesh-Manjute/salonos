@@ -12,6 +12,7 @@ import {
   Filter,
   LogOut,
   Menu,
+  MoreVertical,
   Plus,
   QrCode,
   RefreshCw,
