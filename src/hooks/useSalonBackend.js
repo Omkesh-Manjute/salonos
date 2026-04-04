@@ -350,12 +350,65 @@ export function useOwnerDashboardData(profile) {
         avatar: item.name?.charAt(0) || 'S',
       }));
 
+      // 3. Aggregate unique customers from users, queue, and bookings
+      const queueData = queueRes.data || [];
+      const bookingsData = bookingsRes.data || [];
+      const usersData = customersRes.data || [];
+      
+      const customerMap = new Map();
+
+      // Start with registered users
+      usersData.forEach(u => {
+        const key = u.phone || u.id;
+        customerMap.set(key, {
+          id: u.id,
+          name: u.name,
+          phone: u.phone || 'Reg. User',
+          visits: u.metadata?.visits || 0,
+          spend: u.metadata?.spend || 0,
+          last_visit: u.metadata?.last_visit || u.created_at,
+          role: 'customer'
+        });
+      });
+
+      // Add walk-ins from queue (might not be in users table)
+      queueData.forEach(q => {
+        const key = q.phone || q.customer_name;
+        if (!customerMap.has(key)) {
+          customerMap.set(key, {
+            id: q.user_id || `walkin-${q.id}`,
+            name: q.customer_name,
+            phone: q.phone || 'Walk-in',
+            visits: 1,
+            spend: 0,
+            last_visit: q.created_at,
+            role: 'walkin'
+          });
+        }
+      });
+
+      // Add walk-ins from bookings
+      bookingsData.forEach(b => {
+        const key = b.customer_phone || b.customer_name;
+        if (!customerMap.has(key)) {
+          customerMap.set(key, {
+            id: b.user_id || `booking-${b.id}`,
+            name: b.customer_name,
+            phone: b.customer_phone || 'Offline',
+            visits: 1,
+            spend: b.price || 0,
+            last_visit: b.booking_time,
+            role: 'offline'
+          });
+        }
+      });
+
       setState({
         loading: false,
         services: servicesRes.data || [],
-        customers: (customersRes.data || []).map((item) => ({ ...item, visits: item.metadata?.visits || 0, spend: item.metadata?.spend || 0, last_visit: item.metadata?.last_visit || item.created_at })),
-        bookings: bookingsRes.data || [],
-        queue: queueRes.data || [],
+        customers: Array.from(customerMap.values()),
+        bookings: bookingsData,
+        queue: queueData,
         staff,
         salon,
         error: staffRes.error?.message || servicesRes.error?.message || '',
@@ -418,9 +471,19 @@ export function useOwnerDashboardData(profile) {
 
   const updateQueueStaff = useCallback(async (id, staffName) => {
     if (!isSupabaseConfigured) return { error: null };
-    const { data, error } = await updateQueueEntry(id, { staff_name: staffName });
-    if (!error) await load();
-    return { data, error };
+    try {
+      const { data, error } = await updateQueueEntry(id, { staff_name: staffName });
+      if (error) {
+        console.error("ERROR updateQueueStaff:", error);
+        setState(s => ({ ...s, error: `Failed to save stylist change: ${error.message}` }));
+        return { data: null, error };
+      }
+      await load();
+      return { data, error: null };
+    } catch (err) {
+      console.error("CRITICAL updateQueueStaff:", err);
+      return { data: null, error: err };
+    }
   }, [load]);
 
   const updateQueueStatus = useCallback(async (id, status) => {
