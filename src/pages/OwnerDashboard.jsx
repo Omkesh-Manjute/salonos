@@ -28,6 +28,8 @@ import {
   User,
   Users,
   Zap,
+  Globe,
+  Smartphone,
   Shield,
   X,
 } from 'lucide-react';
@@ -658,11 +660,16 @@ function CRMPage({ customers, recordTransaction, services }) {
                 </div>
                 <div className="text-xs text-gray-400 truncate">{customer.phone || customer.email || '—'}</div>
                 <div className="text-sm text-white font-medium pl-4">{customer.visits || 0}</div>
-                <div className="text-sm text-brand-300 font-bold">
-                  {formatCurrency(customer.spend || 0)}
+                <div className="flex flex-col gap-1 pr-4">
+                  <div className="text-sm text-white font-bold tracking-tight">
+                    {formatCurrency(customer.spend || 0)}
+                  </div>
                   {customer.pendingSpend > 0 && (
-                    <div className="text-[10px] text-yellow-500/80 font-medium">
-                      + {formatCurrency(customer.pendingSpend)} pending
+                    <div className="flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
+                      <span className="text-[10px] text-yellow-500/90 font-bold uppercase tracking-tighter">
+                        {formatCurrency(customer.pendingSpend)} Pending
+                      </span>
                     </div>
                   )}
                 </div>
@@ -707,8 +714,8 @@ function CRMPage({ customers, recordTransaction, services }) {
                 <div className="text-xl font-bold text-brand-300">{formatCurrency(currentSelected.spend)}</div>
                 <div className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Total Spend</div>
                 {currentSelected.pendingSpend > 0 && (
-                  <div className="text-[10px] text-yellow-500/70 mt-1">
-                    {formatCurrency(currentSelected.pendingSpend)} pending
+                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 mt-2 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-[9px] text-yellow-500 font-bold uppercase tracking-widest">
+                    <Clock className="w-2.5 h-2.5" /> {formatCurrency(currentSelected.pendingSpend)} pending
                   </div>
                 )}
               </div>
@@ -779,11 +786,18 @@ function CRMPage({ customers, recordTransaction, services }) {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-white">{new Date(h.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-white">{new Date(h.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-[9px] font-bold text-gray-500 uppercase tracking-tighter">
+                            {h.origin === 'online' ? <Globe className="w-2 h-2 text-brand-400" /> : <Store className="w-2 h-2 text-brand-400" />}
+                            {h.origin === 'online' ? 'Online' : 'Onsite'}
+                          </div>
+                        </div>
                         <span className="text-xs font-medium text-gray-300">{formatCurrency(h.price)}</span>
                       </div>
                       <div className="text-xs text-gray-400 mt-0.5">{h.service}</div>
-                      <div className={`text-[10px] mt-1 capitalize font-medium ${h.status === 'completed' || h.status === 'done' ? 'text-green-500' : 'text-gray-500'}`}>
+                      <div className={`text-[10px] mt-1 capitalize font-medium flex items-center gap-1.5 ${h.status === 'completed' || h.status === 'done' ? 'text-green-500' : 'text-gray-500'}`}>
+                        <div className={`w-1 h-1 rounded-full ${h.status === 'completed' || h.status === 'done' ? 'bg-green-500' : 'bg-gray-500'}`} />
                         {h.status.replace('_', ' ')}
                       </div>
                     </div>

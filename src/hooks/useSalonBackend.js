@@ -474,7 +474,8 @@ export function useOwnerDashboardData(profile) {
           service: item.service_name || 'Service',
           price: Number(item.total_amount || 0),
           status: item.status,
-          type
+          type,
+          origin: item.is_appointment ? 'online' : 'onsite'
         });
 
         if (isToday && (item.status !== 'completed' && item.status !== 'done' && item.status !== 'cancelled')) {
