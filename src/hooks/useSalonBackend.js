@@ -391,7 +391,7 @@ export function useOwnerDashboardData(profile) {
 
       // Start with registered users for this tenant
       usersData.forEach(u => {
-        const key = u.id.toLowerCase().trim();
+        const key = u.id.trim();
         const customerObj = {
           id: key,
           name: u.name,
@@ -423,7 +423,7 @@ export function useOwnerDashboardData(profile) {
 
       const { data: externalUsers } = await listUsersByIds(externalUserIds);
       (externalUsers || []).forEach(u => {
-        const key = u.id.toLowerCase().trim();
+        const key = u.id.trim();
         const phoneKey = u.phone ? u.phone.toLowerCase().trim() : null;
         
         // Check if we already have this user by ID or Phone
@@ -493,7 +493,8 @@ export function useOwnerDashboardData(profile) {
         processedActivityIds.add(item.id);
 
         const rawKey = item.user_id || item.phone || item.customer_phone || item.customer_name || 'unknown';
-        const key = rawKey.toLowerCase().trim();
+        // Case-sensitive for IDs, case-insensitive for phone/names
+        const key = item.user_id ? rawKey.trim() : rawKey.toLowerCase().trim();
 
         if (!customerMap.has(key)) {
           customerMap.set(key, {
