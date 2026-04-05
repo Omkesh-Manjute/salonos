@@ -217,8 +217,11 @@ export async function listBookings({ tenantId, userId, ownerId, limit, salonId }
 }
 
 export async function createManualBooking(bookingData) {
+  // Ensure we don't pass an existing ID that might conflict
+  const { id, ...cleanData } = bookingData;
+  
   const { data, error } = await supabase.from('bookings').insert({
-    ...bookingData,
+    ...cleanData,
     status: 'completed',
     payment_status: 'paid',
     booking_type: 'slot',
@@ -227,9 +230,13 @@ export async function createManualBooking(bookingData) {
     completed_at: new Date().toISOString()
   }).select().single();
   
-  if (error) console.log("ERROR createManualBooking:", error);
+  if (error) {
+    console.error("CRITICAL createManualBooking Error:", error);
+    console.error("Payload was:", cleanData);
+  }
   return { data, error };
 }
+
 
 export async function getBookingsByTenant(tenantId) {
   return listBookings({ tenantId });

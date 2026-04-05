@@ -520,6 +520,11 @@ export function useOwnerDashboardData(profile) {
         const completedServices = c.history.filter(h => h.status === 'completed' || h.status === 'done');
         c.spend = completedServices.reduce((sum, h) => sum + h.price, 0);
         c.visits = completedServices.length;
+        
+        // Add pending spend (not yet completed but booked/waiting/in_progress)
+        const pendingServices = c.history.filter(h => !['completed', 'done', 'cancelled'].includes(h.status));
+        c.pendingSpend = pendingServices.reduce((sum, h) => sum + h.price, 0);
+
         if (completedServices.length > 0) {
           c.last_visit = completedServices[0].date;
         }
@@ -561,6 +566,7 @@ export function useOwnerDashboardData(profile) {
         needsSetup: false,
       });
     } catch (error) {
+      console.error("Dashboard Load Error:", error);
       setState((current) => ({ ...current, loading: false, error: error.message || 'Failed to load dashboard.' }));
     }
   }, [profile?.id, activeSalonId]);
@@ -762,10 +768,20 @@ export function useOwnerDashboardData(profile) {
       total_amount: Number(amount),
     };
 
-    const res = await createManualBooking(payload);
-    if (!res.error) await load(); // Re-fetch all data to update metrics and history
-    return res;
+    try {
+      const res = await createManualBooking(payload);
+      if (res.error) {
+        console.error("ERROR recordTransaction res:", res.error);
+        return res;
+      }
+      await load(); // Re-fetch all data to update metrics and history
+      return res;
+    } catch (err) {
+      console.error("CRITICAL recordTransaction:", err);
+      return { error: err.message };
+    }
   }, [load, state.salon, state.customers]);
+
 
   useEffect(() => {
     load();

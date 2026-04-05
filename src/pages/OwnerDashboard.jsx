@@ -554,17 +554,19 @@ function SettingsPage({ salon, onSave }) {
   );
 }
 
-function CRMPage({ customers, recordTransaction }) {
+function CRMPage({ customers, recordTransaction, services }) {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [amount, setAmount] = useState('');
+  const [serviceName, setServiceName] = useState('Manual Entry');
   const [recording, setRecording] = useState(false);
 
   const handleRecord = async () => {
     if (!amount || isNaN(amount) || Number(amount) <= 0) return;
     setRecording(true);
-    const res = await recordTransaction(selectedCustomer.id, amount);
+    const res = await recordTransaction(selectedCustomer.id, amount, serviceName);
     if (!res.error) {
       setAmount('');
+      setServiceName('Manual Entry');
     }
     setRecording(false);
   };
@@ -611,7 +613,14 @@ function CRMPage({ customers, recordTransaction }) {
                 </div>
                 <div className="text-xs text-gray-400 truncate">{customer.phone || customer.email || '—'}</div>
                 <div className="text-sm text-white font-medium pl-4">{customer.visits || 0}</div>
-                <div className="text-sm text-brand-300 font-bold">{formatCurrency(customer.spend || 0)}</div>
+                <div className="text-sm text-brand-300 font-bold">
+                  {formatCurrency(customer.spend || 0)}
+                  {customer.pendingSpend > 0 && (
+                    <div className="text-[10px] text-yellow-500/80 font-medium">
+                      + {formatCurrency(customer.pendingSpend)} pending
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
             {customers.length === 0 && <div className="text-center py-20 text-gray-500">No customer records yet.</div>}
@@ -649,33 +658,52 @@ function CRMPage({ customers, recordTransaction }) {
                 <div className="text-xl font-bold text-white">{currentSelected.visits}</div>
                 <div className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Total Visits</div>
               </div>
-              <div className="p-4 bg-[#0a0a0f] text-center">
+              <div className="p-4 bg-[#0a0a0f] text-center border-l border-white/5">
                 <div className="text-xl font-bold text-brand-300">{formatCurrency(currentSelected.spend)}</div>
                 <div className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Total Spend</div>
+                {currentSelected.pendingSpend > 0 && (
+                  <div className="text-[10px] text-yellow-500/70 mt-1">
+                    {formatCurrency(currentSelected.pendingSpend)} pending
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="p-6 border-b border-white/10 bg-white/3">
               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Record Transaction</h3>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
-                  <input 
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="Enter bill amount"
-                    className="w-full bg-[#0a0a0f] border border-white/10 rounded-xl pl-6 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50"
-                  />
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[10px] text-gray-500 mb-1.5 ml-1 uppercase font-bold tracking-wider">Service</label>
+                  <select 
+                    value={serviceName} 
+                    onChange={(e) => setServiceName(e.target.value)}
+                    className="w-full bg-[#0a0a0f] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50"
+                  >
+                    <option value="Manual Entry">Manual Entry</option>
+                    {services.map(s => <option key={s.id} value={s.name}>{s.name} (₹{s.price})</option>)}
+                  </select>
                 </div>
-                <button 
-                  onClick={handleRecord}
-                  disabled={recording || !amount}
-                  className="px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold transition-all disabled:opacity-50">
-                  {recording ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Record'}
-                </button>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
+                    <input 
+                      type="number"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder="Enter bill amount"
+                      className="w-full bg-[#0a0a0f] border border-white/10 rounded-xl pl-6 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50"
+                    />
+                  </div>
+                  <button 
+                    onClick={handleRecord}
+                    disabled={recording || !amount}
+                    className="px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold transition-all disabled:opacity-50">
+                    {recording ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Record'}
+                  </button>
+                </div>
               </div>
             </div>
+
 
             {currentSelected.todayActivity && (
               <div className="p-6 border-b border-white/10 bg-brand-500/5">
@@ -823,7 +851,7 @@ export default function OwnerDashboard() {
     />,
     staff: <StaffPage staff={staff} onAdd={addStaff} onUpdate={updateStaff} onDelete={deleteStaff} />,
     services: <ServicesPage services={services} onAdd={addService} onEdit={editService} onDelete={removeService} />,
-    crm: <CRMPage customers={customers} recordTransaction={recordTransaction} />,
+    crm: <CRMPage customers={customers} recordTransaction={recordTransaction} services={services} />,
     reports: <ReportsPage revenueSeries={revenueSeries} peakHours={peakHours} />,
     settings: <SettingsPage salon={salon} onSave={saveSalonSettings} />,
   };
