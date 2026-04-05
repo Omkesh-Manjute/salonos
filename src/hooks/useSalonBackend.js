@@ -404,7 +404,8 @@ export function useOwnerDashboardData(profile) {
           last_visit: u.metadata?.last_visit || u.created_at,
           history: [],
           todayActivity: null,
-          role: 'customer'
+          role: 'customer',
+          isRegistered: true
         };
         customerMap.set(key, customerObj);
         
@@ -441,7 +442,8 @@ export function useOwnerDashboardData(profile) {
             last_visit: u.created_at,
             history: [],
             todayActivity: null,
-            role: 'customer'
+            role: 'customer',
+            isRegistered: true
           };
           customerMap.set(key, c);
           if (phoneKey) customerMap.set(phoneKey, c);
@@ -750,6 +752,14 @@ export function useOwnerDashboardData(profile) {
     return { data, error };
   }, [load, state.salon]);
 
+  const saveOwnerProfile = useCallback(async (updates) => {
+    const ownerId = profile?.id;
+    if (!isSupabaseConfigured || !ownerId) return { error: 'Not configured' };
+    const { data, error } = await updateUserProfile(ownerId, updates);
+    if (!error) await load();
+    return { data, error };
+  }, [load, profile?.id]);
+
   const recordTransaction = useCallback(async (customerId, amount, serviceName = 'Manual Entry') => {
     if (!isSupabaseConfigured || !state.salon) return { error: 'Salon not loaded' };
 
@@ -761,9 +771,9 @@ export function useOwnerDashboardData(profile) {
       tenant_id: state.salon.tenant_id,
       salon_id: state.salon.id,
       owner_id: state.salon.owner_id,
-      user_id: c.role === 'customer' ? customerId : null,
-      customer_name: c.name || 'Customer',
-      customer_phone: c.phone || '',
+      user_id: (c.isRegistered && c.role === 'customer') ? customerId : null,
+      customer_name: c.name || 'Walk-in Customer',
+      customer_phone: c.phone || null,
       service_name: serviceName,
       total_amount: Number(amount),
     };
@@ -830,6 +840,7 @@ export function useOwnerDashboardData(profile) {
     switchSalon,
     allSalons: state.allSalons,
     saveSalonSettings,
+    saveOwnerProfile,
     mode: !isSupabaseConfigured ? 'sample' : 'live',
   };
 }

@@ -220,22 +220,28 @@ export async function createManualBooking(bookingData) {
   // Ensure we don't pass an existing ID that might conflict
   const { id, ...cleanData } = bookingData;
   
+  // Use a fresh timestamp to avoid any potential millisecond collisions
+  const timestamp = new Date().toISOString();
+
   const { data, error } = await supabase.from('bookings').insert({
     ...cleanData,
     status: 'completed',
     payment_status: 'paid',
     booking_type: 'slot',
-    created_at: new Date().toISOString(),
-    booking_time: new Date().toISOString(),
-    completed_at: new Date().toISOString()
+    created_at: timestamp,
+    booking_time: timestamp,
+    completed_at: timestamp
   }).select().single();
   
   if (error) {
-    console.error("CRITICAL createManualBooking Error:", error);
+    console.error("🔴 MANUAL BOOKING ERROR:", error.message || error);
+    if (error.details) console.error("Details:", error.details);
+    if (error.hint) console.error("Hint:", error.hint);
     console.error("Payload was:", cleanData);
   }
   return { data, error };
 }
+
 
 
 export async function getBookingsByTenant(tenantId) {

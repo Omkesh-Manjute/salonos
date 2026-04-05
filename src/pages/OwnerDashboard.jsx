@@ -481,10 +481,16 @@ function ServicesPage({ services, onAdd, onEdit, onDelete }) {
   );
 }
 
-function SettingsPage({ salon, onSave }) {
+function SettingsPage({ salon, onSave, profile, onSaveProfile }) {
   const [name, setName] = useState(salon?.name || '');
+  const [profileName, setProfileName] = useState(profile?.name || '');
+  const [profilePhone, setProfilePhone] = useState(profile?.phone || '');
+  const [profileEmail, setProfileEmail] = useState(profile?.email || '');
+  
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savedProfile, setSavedProfile] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const salonUrl = salon?.slug ? `${window.location.origin}/salon/${salon.slug}` : '';
@@ -495,6 +501,20 @@ function SettingsPage({ salon, onSave }) {
     await onSave({ name });
     setSaving(false); setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  }
+
+  async function handleSaveProfile() {
+    setSavingProfile(true);
+    const { error } = await onSaveProfile({ 
+      name: profileName, 
+      phone: profilePhone, 
+      email: profileEmail 
+    });
+    setSavingProfile(false);
+    if (!error) {
+      setSavedProfile(true);
+      setTimeout(() => setSavedProfile(false), 2000);
+    }
   }
 
   function copyLink() {
@@ -546,7 +566,32 @@ function SettingsPage({ salon, onSave }) {
           </div>
           <button onClick={handleSave} disabled={saving} className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 disabled:opacity-70">
             {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4 text-emerald-300" /> : null}
-            {saved ? 'Saved!' : 'Save Changes'}
+            {saved ? 'Saved!' : 'Save Salon Details'}
+          </button>
+        </div>
+      </div>
+
+      {/* Owner Profile */}
+      <div className="glass rounded-2xl p-6 border border-white/10">
+        <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><User className="w-4 h-4 text-brand-400" /> Owner Profile</h3>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1.5">Your Name</label>
+              <input value={profileName} onChange={(e) => setProfileName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1.5">Phone Number</label>
+              <input value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1.5">Email Address</label>
+            <input value={profileEmail} onChange={(e) => setProfileEmail(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50" />
+          </div>
+          <button onClick={handleSaveProfile} disabled={savingProfile} className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 disabled:opacity-70">
+            {savingProfile ? <RefreshCw className="w-4 h-4 animate-spin" /> : savedProfile ? <Check className="w-4 h-4 text-emerald-300" /> : null}
+            {savedProfile ? 'Profile Saved!' : 'Update My Profile'}
           </button>
         </div>
       </div>
@@ -800,12 +845,12 @@ export default function OwnerDashboard() {
   const [activePage, setActivePage] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
-  const { profile, signOut, loading: authLoading } = useAuth();
+  const { profile, signOut, loading: authLoading, refreshProfile } = useAuth();
   const {
     metrics = {}, revenueSeries = [], queue = [], staff = [], customers = [], services = [], peakHours = [], salon = null,
     loading = false, error = null, needsSetup = false,
     callNext, addWalkIn, addStaff, updateStaff, deleteStaff,
-    addService, editService, removeService, saveSalonSettings,
+    addService, editService, removeService, saveSalonSettings, saveOwnerProfile,
     updateQueueStaff, switchSalon, allSalons = [],
     recordTransaction,
     mode = 'sample',
@@ -853,7 +898,18 @@ export default function OwnerDashboard() {
     services: <ServicesPage services={services} onAdd={addService} onEdit={editService} onDelete={removeService} />,
     crm: <CRMPage customers={customers} recordTransaction={recordTransaction} services={services} />,
     reports: <ReportsPage revenueSeries={revenueSeries} peakHours={peakHours} />,
-    settings: <SettingsPage salon={salon} onSave={saveSalonSettings} />,
+    settings: (
+      <SettingsPage 
+        salon={salon} 
+        onSave={saveSalonSettings} 
+        profile={profile} 
+        onSaveProfile={async (updates) => {
+          const res = await saveOwnerProfile(updates);
+          if (!res.error) await refreshProfile();
+          return res;
+        }} 
+      />
+    ),
   };
 
   return (
